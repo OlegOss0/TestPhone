@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/main_container"
+        android:visibility="visible"
+        android:orientation="vertical" android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+    <Button
+        android:id="@+id/btnSend"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Send to server" />
+
+    <Button
+        android:id="@+id/btnClear"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Clear DB"
+        android:visibility="gone"/>
+
+    <Button
+        android:id="@+id/btn_chk_update"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Check update" />
+
+        <Button
+            android:id="@+id/btn_clear_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Clear Info" />
+
+        <Button
+        android:id="@+id/btn_closed"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Closed" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:overScrollMode="always">
+
+        <TextView
+            android:id="@+id/tvInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp" />
+    </ScrollView>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/password_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:gravity="center">
+        <EditText
+            android:id="@+id/editTextTextPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:inputType="textPassword"
+            android:hint="@string/enter_password_txt" />
+
+        <Button
+            android:layout_gravity="end"
+            android:layout_marginEnd="16dp"
+            android:id="@+id/check_password"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Enter" />
+    </LinearLayout>
+</RelativeLayout>

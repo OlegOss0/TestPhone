@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">TestPhone</string>
+    <string name="updateMsgTxt">The update is ready to install. Click The Update Button.</string>
+    <string name="installMsgTxt">To work correctly, install the TPAssistant application. Click Install.</string>
+    <string name="unpackingMsgTxt">Unpacking install apk..</string>
+    <string name="rebootMsg">You must restart your device!</string>
+    <string name="updateBtnTxt">Update</string>
+    <string name="installBtnTxt">Install</string>
+    <string name="settings">Settings</string>
+    <string name="check_internet_connection">Check internet connection!</string>
+    <string name="addition_loggin_menu_item_txt">Enable additional logging</string>
+    <string name="clear_db_menu_item_txt">Clear data base</string>
+    <string name="enter_password_txt">Enter password</string>
+</resources>
