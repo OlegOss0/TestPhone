@@ -113,7 +113,9 @@ public class DeviceInfo {
     public static String getIMEI() {
         if (mIMEI == null) {
             if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                mIMEI = "Not support";
+                mIMEI = Settings.Secure.getString(
+                        App.getContext().getContentResolver(),
+                        Settings.Secure.ANDROID_ID);
             } else {
                 TelephonyManager tMgr = (TelephonyManager) App.getContext().getSystemService(Context.TELEPHONY_SERVICE);
                 mIMEI = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O ? tMgr.getImei() : tMgr.getDeviceId();

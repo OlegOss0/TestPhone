@@ -3,6 +3,7 @@ package com.pso.testphone;
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.os.Build;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -25,11 +26,19 @@ public class PermissionHelper {
     }
 
     public static void requestLocationPermissions(Activity activity) {
-        requestPermissions(activity, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            requestPermissions(activity, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_BACKGROUND_LOCATION});
+        }else{
+            requestPermissions(activity, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
+        }
     }
 
     public static boolean hasLocationPermissions(){
-        return hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) && hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
+        }else{
+            return hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION);
+        }
     }
 
 
@@ -39,8 +48,13 @@ public class PermissionHelper {
     }
 
     public static boolean hasAllPermission(){
-        return hasPermission(Manifest.permission.READ_PHONE_STATE) && hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return hasPermission(Manifest.permission.READ_PHONE_STATE) && hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) && hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
+        }else{
+            return hasPermission(Manifest.permission.READ_PHONE_STATE) && hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION);
+        }
     }
 
     public static void requestPermissions(Activity activity, String[] permissions) {

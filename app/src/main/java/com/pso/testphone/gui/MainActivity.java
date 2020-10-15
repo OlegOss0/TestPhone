@@ -101,7 +101,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void checkAllPermission() {
-        if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+        if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) || ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ? !hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) : true)) {
             hasLocationPermission = false;
             PermissionHelper.requestLocationPermissions(this);
         }
@@ -150,11 +150,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         for (int i = 0; i < permissions.length; i++) {
-            if (permissions[i].equals(Manifest.permission.ACCESS_COARSE_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            if (permissions[i].equals(Manifest.permission.ACCESS_COARSE_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                    && ((Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) || hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION))) {
                 hasLocationPermission = true;
             }
-            if (permissions[i].equals(Manifest.permission.ACCESS_FINE_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            if (permissions[i].equals(Manifest.permission.ACCESS_FINE_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    && ((Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) || hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION))) {
                 hasLocationPermission = true;
+            }
+            if (permissions[i].equals(Manifest.permission.ACCESS_BACKGROUND_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED
+                    && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                    && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+                hasReadPhoneStatePermission = true;
             }
             if (permissions[i].equals(Manifest.permission.READ_PHONE_STATE) && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
                 hasReadPhoneStatePermission = true;

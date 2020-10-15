@@ -46,6 +46,7 @@ public class LocationManager {
     @SuppressLint("MissingPermission")
     public void initLocationListeners() {
         locationManager = (android.location.LocationManager) App.getContext().getSystemService(Context.LOCATION_SERVICE);
+        assert locationManager != null;
         locationManager.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 1500, 5, gpsLocationListener, App.getBgHandler().getLooper());
         locationManager.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 1500, 5, networkLocationListener, App.getBgHandler().getLooper());
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
