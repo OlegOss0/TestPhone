@@ -636,7 +636,6 @@ public class RemoteServerHelper {
     private void disconnectUploadServer(final FTPClient ftpClient) {
         if (ftpClient.isConnected()) {
             try {
-                //ftpClient.logout();
                 ftpClient.disconnect();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -897,7 +896,7 @@ public class RemoteServerHelper {
         public void onReceive(Context context, Intent intent) {
             ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
             NetworkInfo activeNetInfo = connectivityManager.getActiveNetworkInfo();
-            if (activeNetInfo == null || !activeNetInfo.isAvailable()) {
+            if (activeNetInfo == null || !activeNetInfo.isConnected()/*|| !activeNetInfo.isAvailable()*/) {
                 DataStorage.networkAvailable.set(false);
                 activeNetInfoStr = "";
                 return;

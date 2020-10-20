@@ -101,9 +101,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void checkAllPermission() {
-        if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) || ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ? !hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) : true)) {
-            hasLocationPermission = false;
-            PermissionHelper.requestLocationPermissions(this);
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q){
+            if(!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)){
+                hasLocationPermission = false;
+                PermissionHelper.requestLocationPermissions(this);
+            }
+        }else{
+            if(!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)){
+                hasLocationPermission = false;
+                PermissionHelper.requestLocationPermissions(this);
+            }
+
         }
         if (!hasPermission(Manifest.permission.READ_PHONE_STATE)) {
             hasReadPhoneStatePermission = false;
