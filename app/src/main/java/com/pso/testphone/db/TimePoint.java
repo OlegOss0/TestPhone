@@ -38,4 +38,7 @@ public class TimePoint {
     @NonNull
     public String activeNetwork; //add in version 2
 
+    @NonNull
+    public String noPermissions; //add in version 5
+
 }

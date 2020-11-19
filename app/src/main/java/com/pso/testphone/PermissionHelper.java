@@ -8,6 +8,9 @@ import android.os.Build;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.pso.testphone.data.DataStorage;
+import com.pso.testphone.data.DeviceInfo;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,6 +26,9 @@ public class PermissionHelper {
         if (!hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
             requestPermissions(activity, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE});
         }
+    }
+    public static boolean hasWriteExtStoragePermission(){
+        return hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
     }
 
     public static void requestLocationPermissions(Activity activity) {
@@ -48,13 +54,23 @@ public class PermissionHelper {
     }
 
     public static boolean hasAllPermission(){
+        boolean rdPhn, wtStrg, fLoc, cLoc, bgLoc;
+        DataStorage.clearDeniedPerm();
+        rdPhn = hasPermission(Manifest.permission.READ_PHONE_STATE);
+        if(!rdPhn) DataStorage.addDeniedPerm(Manifest.permission.READ_PHONE_STATE);
+        wtStrg = hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        if(!wtStrg) DataStorage.addDeniedPerm(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        fLoc = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION);
+        if(!fLoc)DataStorage.addDeniedPerm(Manifest.permission.ACCESS_FINE_LOCATION);
+        cLoc = hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION);
+        if(!cLoc)DataStorage.addDeniedPerm(Manifest.permission.ACCESS_COARSE_LOCATION);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return hasPermission(Manifest.permission.READ_PHONE_STATE) && hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) && hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
+            bgLoc = hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
+            if(!bgLoc)DataStorage.addDeniedPerm(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
         }else{
-            return hasPermission(Manifest.permission.READ_PHONE_STATE) && hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION);
+            bgLoc = true;
         }
+        return rdPhn && wtStrg && fLoc && cLoc && bgLoc;
     }
 
     public static void requestPermissions(Activity activity, String[] permissions) {
@@ -62,7 +78,6 @@ public class PermissionHelper {
         if (permissions.length > 0) {
             ActivityCompat.requestPermissions(activity, permissions, 123);
         }
-
     }
 
 

@@ -21,7 +21,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true">
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -52,7 +53,7 @@
         <receiver
             android:name=".recervers.SystemBroadcastReceiver"
             android:enabled="true"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.BATTERY_CHANGED" />
@@ -66,7 +67,7 @@
                 <action android:name="android.intent.action.AIRPLANE_MODE" />
                 <action android:name="android.intent.action.DREAMING_STARTED" />
                 <action android:name="android.intent.action.DREAMING_STOPPED" />
-                <action android:name="alarmIntent" />
+                <action android:name="alarmIntentFromAssistant"/>
             </intent-filter>
         </receiver>
 

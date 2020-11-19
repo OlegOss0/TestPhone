@@ -10,4 +10,10 @@
     <string name="addition_loggin_menu_item_txt">Enable additional logging</string>
     <string name="clear_db_menu_item_txt">Clear data base</string>
     <string name="enter_password_txt">Enter password</string>
+    <string name="send_to_server">Выгрузить данные</string>
+    <string name="clear_db">Очистить данные</string>
+    <string name="check_update">Проверить обновления</string>
+    <string name="send_logs">Выгрузить файл логов</string>
+    <string name="clear_info">Очистить окно</string>
+    <string name="closed">Закрыть</string>
 </resources>

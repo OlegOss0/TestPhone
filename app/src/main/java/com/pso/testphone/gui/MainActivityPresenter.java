@@ -45,4 +45,10 @@ public class MainActivityPresenter {
             App.getMainHandler().post(() -> mMainActivity.clearMsg());
         }
     }
+
+    public static void refreshTitle() {
+        if(mMainActivity != null){
+            App.getMainHandler().postDelayed(() -> mMainActivity.refreshStatusBar(), 50);
+        }
+    }
 }

@@ -41,18 +41,14 @@ public class App extends Application {
         super.onCreate();
         mContext = getApplicationContext();
         DeviceInfo.Init(mContext);
-        Log.i(TAG, "onCreate");
         bgThread = new HandlerThread("App backGroundThread");
         bgThread.start();
         bgHandler = new Handler(bgThread.getLooper());
         mainHandler = new Handler();
         appDataBase = Room.databaseBuilder(getApplicationContext(), AppDataBase.class, "database")
-                .addMigrations(AppDataBase.MIGRATION_1_2, AppDataBase.MIGRATION_2_3, AppDataBase.MIGRATION_3_4)
+                .addMigrations(AppDataBase.MIGRATION_1_2, AppDataBase.MIGRATION_2_3, AppDataBase.MIGRATION_3_4, AppDataBase.MIGRATION_4_5)
                 .allowMainThreadQueries()
                 .build();
-        /*if(DataStorage.isFirstTime()){
-            unpackAssistant();
-        }*/
         createNotificationChannel();
     }
 
@@ -108,9 +104,10 @@ public class App extends Application {
 
     @Override
     public void onTerminate() {
-        Log.e(TAG, "onTerminate");
         super.onTerminate();
     }
+
+
 
 
 }

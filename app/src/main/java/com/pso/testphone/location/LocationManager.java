@@ -9,6 +9,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
 import android.util.Log;
 
 import com.pso.testphone.App;
@@ -31,8 +32,8 @@ import static android.location.GnssStatus.CONSTELLATION_QZSS;
 import static android.location.GnssStatus.CONSTELLATION_SBAS;
 
 public class LocationManager {
-    private LocationListenerNetwork networkLocationListener = new LocationListenerNetwork();
-    private LocationListenerGPS gpsLocationListener = new LocationListenerGPS();
+    private LocationListenerNetwork networkLocationListener;
+    private LocationListenerGPS gpsLocationListener;
     private mGnssStatusCallback mGnssStatusCallback;
     private GpsStatusListener mGpsStatusListener;
     private android.location.LocationManager locationManager;
@@ -47,8 +48,10 @@ public class LocationManager {
     public void initLocationListeners() {
         locationManager = (android.location.LocationManager) App.getContext().getSystemService(Context.LOCATION_SERVICE);
         assert locationManager != null;
-        locationManager.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 1500, 5, gpsLocationListener, App.getBgHandler().getLooper());
-        locationManager.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 1500, 5, networkLocationListener, App.getBgHandler().getLooper());
+        networkLocationListener = new LocationListenerNetwork();
+        gpsLocationListener = new LocationListenerGPS();
+        locationManager.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 5000, 10, gpsLocationListener, App.getBgHandler().getLooper());
+        locationManager.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 5000, 10, networkLocationListener, App.getBgHandler().getLooper());
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             mGnssStatusCallback = new mGnssStatusCallback();
             locationManager.registerGnssStatusCallback(mGnssStatusCallback);
@@ -60,6 +63,8 @@ public class LocationManager {
 
     @SuppressLint("MissingPermission")
     public HashMap<String, Provider> getAvailableProviders() {
+        if(!PermissionHelper.hasLocationPermissions())
+            return null;
         HashMap<String, Provider> providers = new HashMap<>();
         Location location = null;
         float bestAccuracy = -1;
@@ -154,6 +159,11 @@ public class LocationManager {
                 satellitesInfo.set(satInfoStr);
             }
         }
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
     }
 
     private static String consellationToName(int constellationType) {

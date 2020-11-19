@@ -30,6 +30,7 @@ public class DeviceInfo {
     public static final String GPS_PROVIDER = "gps";
     public static final String NETWORK_PROVIDER = "network";
     private static String mIMEI;
+    private static String deniedPermissionList = "";
 
 
     public static void Init(Context context) {
@@ -112,13 +113,20 @@ public class DeviceInfo {
 
     public static String getIMEI() {
         if (mIMEI == null) {
-            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                mIMEI = Settings.Secure.getString(
-                        App.getContext().getContentResolver(),
-                        Settings.Secure.ANDROID_ID);
-            } else {
-                TelephonyManager tMgr = (TelephonyManager) App.getContext().getSystemService(Context.TELEPHONY_SERVICE);
-                mIMEI = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O ? tMgr.getImei() : tMgr.getDeviceId();
+            TelephonyManager tMgr = (TelephonyManager) App.getContext().getSystemService(Context.TELEPHONY_SERVICE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try{
+                    mIMEI = tMgr.getImei();
+                }catch (Exception e){
+
+                }
+                if(mIMEI == null || mIMEI.isEmpty()){
+                    mIMEI = Settings.Secure.getString(
+                            App.getContext().getContentResolver(),
+                            Settings.Secure.ANDROID_ID);
+                }
+            }else{
+                mIMEI = tMgr.getDeviceId();
             }
         }
         return mIMEI;
@@ -157,7 +165,7 @@ public class DeviceInfo {
     }
 
     public static String floatForm(double d) {
-        return new DecimalFormat("#.##").format(d);
+        return new DecimalFormat("#,##").format(d);
     }
 
 
@@ -215,4 +223,10 @@ public class DeviceInfo {
         String gpsONstr = Settings.Secure.getString(App.getContext().getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
         return (gpsONstr.contains("network,gps")) | (gpsONstr.contains("gps,network"));
     }
+
+    public static String getDeniedPermissions() {
+        return deniedPermissionList;
+    }
+
+
 }

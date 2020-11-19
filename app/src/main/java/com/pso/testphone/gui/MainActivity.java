@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.storage.StorageManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -20,6 +19,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.pso.testphone.App;
+import com.pso.testphone.AppLogger;
 import com.pso.testphone.BuildConfig;
 import com.pso.testphone.PermissionHelper;
 import com.pso.testphone.R;
@@ -29,10 +29,16 @@ import com.pso.testphone.interfaces.ServerTaskListener;
 
 import static com.pso.testphone.PermissionHelper.checkWriteExtStoragePermission;
 import static com.pso.testphone.PermissionHelper.hasPermission;
+import static com.pso.testphone.data.Codes.BTN_PRESSED;
+import static com.pso.testphone.data.Codes.CHECK_UPDATE_PRESSED_MSG;
+import static com.pso.testphone.data.Codes.CLEAR_DB_PRESSED_MSG;
+import static com.pso.testphone.data.Codes.CLOSED_PRESSED_MSG;
+import static com.pso.testphone.data.Codes.SEND_DATA_FILE_SEND_PRESSED_MSG;
+import static com.pso.testphone.data.Codes.SEND_LOG_FILE_SEND_PRESSED_MSG;
 import static com.pso.testphone.recervers.SystemBroadcastReceiver.startDataCollectorService;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, ServerTaskListener {
-    private Button btnSend, btnClearDB, btnClosed, btnCheckUpdate, btnClearInfo;
+    private Button btnSend, btnClearDB, btnClosed, btnCheckUpdate, btnClearInfo, btnSendLogs;
     private boolean hasLocationPermission = true;
     private boolean hasReadPhoneStatePermission = true;
     private boolean hasWriteExternalStoragePermission = true;
@@ -57,6 +63,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnClosed = findViewById(R.id.btn_closed);
         btnCheckUpdate = findViewById(R.id.btn_chk_update);
         btnClearInfo = findViewById(R.id.btn_clear_info);
+        btnSendLogs = findViewById(R.id.btn_send_logs);
+        btnSendLogs.setOnClickListener(this);
         btnClearInfo.setOnClickListener(this);
         btnSend.setOnClickListener(this);
         btnClearDB.setOnClickListener(this);
@@ -64,8 +72,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnCheckUpdate.setOnClickListener(this);
         tv = findViewById(R.id.tvInfo);
 
+        refreshStatusBar();
+        MainActivityPresenter.onViewReady(this);
+    }
+
+    public void refreshStatusBar() {
+        String appName = "TestPhone";
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle(getSupportActionBar().getTitle() + " " + BuildConfig.VERSION_NAME);
+            getSupportActionBar().setTitle("");
+            getSupportActionBar().setTitle(appName + " " + BuildConfig.VERSION_NAME + " IP=" + DataStorage.ip);
         }
     }
 
@@ -101,13 +116,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void checkAllPermission() {
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q){
-            if(!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
                 hasLocationPermission = false;
                 PermissionHelper.requestLocationPermissions(this);
             }
-        }else{
-            if(!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)){
+        } else {
+            if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) {
                 hasLocationPermission = false;
                 PermissionHelper.requestLocationPermissions(this);
             }
@@ -115,11 +130,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         if (!hasPermission(Manifest.permission.READ_PHONE_STATE)) {
             hasReadPhoneStatePermission = false;
-            PermissionHelper.checkReadPhoneStatePermission(this);
+            PermissionHelper.requestPermissions(this, new String[]{Manifest.permission.READ_PHONE_STATE});
         }
         if (!hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
             hasWriteExternalStoragePermission = false;
-            PermissionHelper.checkWriteExtStoragePermission(this);
+            PermissionHelper.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE});
         }
     }
 
@@ -131,6 +146,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onStop() {
         super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        MainActivityPresenter.onViewDestroy();
+        RemoteServerHelper.getINSTANCE().unBindServerTaskListener(this);
+        super.onDestroy();
     }
 
     @Override
@@ -147,7 +169,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     protected void onPause() {
-        MainActivityPresenter.onViewDestroy();
         super.onPause();
     }
 
@@ -158,18 +179,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         for (int i = 0; i < permissions.length; i++) {
-            if (permissions[i].equals(Manifest.permission.ACCESS_COARSE_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-                    && ((Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) || hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION))) {
-                hasLocationPermission = true;
-            }
-            if (permissions[i].equals(Manifest.permission.ACCESS_FINE_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
-                    && ((Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) || hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION))) {
-                hasLocationPermission = true;
-            }
-            if (permissions[i].equals(Manifest.permission.ACCESS_BACKGROUND_LOCATION) && grantResults[i] == PackageManager.PERMISSION_GRANTED
-                    && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-                    && hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) {
-                hasReadPhoneStatePermission = true;
+            if ((Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)){
+                if(hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)){
+                    hasLocationPermission = true;
+                }
+            }else{
+                if(hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)){
+                    hasLocationPermission = true;
+                }
             }
             if (permissions[i].equals(Manifest.permission.READ_PHONE_STATE) && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
                 hasReadPhoneStatePermission = true;
@@ -177,7 +194,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (permissions[i].equals(Manifest.permission.WRITE_EXTERNAL_STORAGE) && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
                 hasWriteExternalStoragePermission = true;
             }
-
         }
         if (hasLocationPermission && hasReadPhoneStatePermission) {
             startDataCollectorService(this);
@@ -193,33 +209,32 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startActivity(intent);
     }
 
-    /**//*@Override
-    public void onTaskFailed() {
-        Toast.makeText(App.getContext(), "Download filed", Toast.LENGTH_LONG).show();
-    }*/
-
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.btnSend:
-                if (hasReadPhoneStatePermission) {
-                    RemoteServerHelper.getINSTANCE().sendFileToServer();
-                } else {
-                    PermissionHelper.checkReadPhoneStatePermission(getParent());
-                }
+                AppLogger.writeLog(BTN_PRESSED, SEND_DATA_FILE_SEND_PRESSED_MSG);
+                RemoteServerHelper.getINSTANCE().completeTask(RemoteServerHelper.TaskType.SendData);
+                break;
+            case R.id.btn_send_logs:
+                AppLogger.writeLog(BTN_PRESSED, SEND_LOG_FILE_SEND_PRESSED_MSG);
+                RemoteServerHelper.getINSTANCE().completeTask(RemoteServerHelper.TaskType.SendLogs);
                 break;
             case R.id.btn_closed:
+                AppLogger.writeLog(BTN_PRESSED, CLOSED_PRESSED_MSG);
                 finish();
                 break;
             case R.id.btnClear:
+                AppLogger.writeLog(BTN_PRESSED, CLEAR_DB_PRESSED_MSG);
                 App.getDataBase().clearAllTables();
                 break;
             case R.id.btn_chk_update:
                 if (!hasWriteExternalStoragePermission) {
                     checkWriteExtStoragePermission(this);
                 } else {
+                    AppLogger.writeLog(BTN_PRESSED, CHECK_UPDATE_PRESSED_MSG);
                     RemoteServerHelper.getINSTANCE().bindServerTaskListener(this);
-                    RemoteServerHelper.getINSTANCE().downloadUpdateFile();
+                    RemoteServerHelper.getINSTANCE().completeTask(RemoteServerHelper.TaskType.getUpdate);
                 }
                 break;
             case R.id.btn_clear_info: {

@@ -19,13 +19,12 @@ import androidx.core.app.NotificationCompat;
 import com.pso.testphone.App;
 import com.pso.testphone.AppLogger;
 import com.pso.testphone.BuildConfig;
+import com.pso.testphone.data.Codes;
 import com.pso.testphone.data.DataStorage;
 import com.pso.testphone.data.DeviceInfo;
 import com.pso.testphone.gui.DialogActivity;
 import com.pso.testphone.gui.MainActivity;
-import com.pso.testphone.gui.MainActivityPresenter;
 import com.pso.testphone.PermissionHelper;
-import com.pso.testphone.data.PreferenceManager;
 import com.pso.testphone.network.RemoteServerHelper;
 import com.pso.testphone.R;
 import com.pso.testphone.db.Provider;
@@ -55,10 +54,11 @@ public class MainService extends Service {
     private static IntentFilter intentFilter;
     private static final String TAG = MainService.class.getSimpleName();
     public final int CHECK_INSTALL_APPS_INTERVAL = 60 * 1000 * 5; //5 min
-    private long lastCheckInstallAppTime = 0;
+    private long lastCheckInstallAppTime = -1;
     private static final Object lock = new Object();
-    private final int SEND_BROADCAST_TO_ASSISTANT_DELAY = 1500;
+    private final int SEND_BROADCAST_TO_ASSISTANT_DELAY = 3000;
     private static boolean notificationIsNormal = false;
+    private Notification mNotification;
 
     static {
         intentFilter = new IntentFilter();
@@ -96,11 +96,8 @@ public class MainService extends Service {
                 mLocationManager.initLocationListeners();
                 createNotification(true, "");
             }
-            saveToDB(mLocationManager.getAvailableProviders());
 
-            if (DataStorage.getNextUpdateTime() == PreferenceManager.defValue || DataStorage.getNextUpdateTime() < System.currentTimeMillis()) {
-                RemoteServerHelper.getINSTANCE().downloadUpdateFile();
-            }
+            saveToDB(mLocationManager.getAvailableProviders());
 
             if (!DataStorage.getUpdateFileName().isEmpty()) {
 
@@ -109,25 +106,34 @@ public class MainService extends Service {
                         DataStorage.setUpdateFileName("");
                     }
                 } else {
-                    startDialogActivity(ServerTaskListener.UPDATE_APP);
+                    if (PermissionHelper.hasWriteExtStoragePermission()) {
+                        startDialogActivity(ServerTaskListener.UPDATE_APP);
+                    }
                 }
             }
-            showRebootMsgIfNeed();
-            sendToServerIfNeed();
-            if (!DataStorage.isAssistantInstall() || DataStorage.needUpdateTpAssistant()) {
+            if (PermissionHelper.hasWriteExtStoragePermission()) {
+                checkUpdateIfNeed();
+            }
+            sendDataFileIfNeed();
+            sendLogsIfNeed();
+
+            if ((!DataStorage.isAssistantInstall() || DataStorage.needUpdateTpAssistant()) && PermissionHelper.hasWriteExtStoragePermission()) {
                 startDialogActivity(ServerTaskListener.INSTALL_ASSISTANT);
             }
             if (!DeviceInfo.isGpsEnable()) {
                 startDialogActivity(NEED_ENABLED_ALL_LOCATION);
             }
+            showRebootMsgIfNeed();
             AppLogger.e(TAG, "End work");
             serviceHandler.postDelayed(mainRunnable, DataStorage.getWriteInterval());
         }
     };
 
+
     private void showRebootMsgIfNeed() {
         final long curTime = System.currentTimeMillis();
-        if(curTime - DeviceInfo.getBootTime() > DataStorage.getShowRebootMsgInTime() && curTime - DataStorage.getGpsTime() > DataStorage.getShowRebootMsgInTime()){
+        if (curTime - DeviceInfo.getBootTime() > DataStorage.getShowRebootMsgInTime() && curTime - DataStorage.getGpsTime() > DataStorage.getShowRebootMsgInTime()
+                && DataStorage.getLastTimeShowRebootMsg() - curTime > DataStorage.getShowRebootMsgInTime()) {
             startDialogActivity(ServerTaskListener.REBOOT_DEVICE);
         }
     }
@@ -144,29 +150,34 @@ public class MainService extends Service {
         }
     }
 
-    private void sendToServerIfNeed() {
-        if (DataStorage.getLastUploadTime() + DataStorage.getUploadInterval() < System.currentTimeMillis()) {
-            MainActivityPresenter.addMsg(true, "Start upload to server by interval ");
-            if (DataStorage.networkAvailable.get()){
-                RemoteServerHelper.getINSTANCE().sendFileToServer();
-            }else{
-                MainActivityPresenter.addMsg(true, App.getContext().getString(R.string.check_internet_connection));
-            }
-        } else {
-            Log.i(TAG, "No need send to server by interval ");
+    private void checkUpdateIfNeed() {
+        if (DataStorage.getLastUpdateTime() + DataStorage.getUpdateInterval() < System.currentTimeMillis()) {
+            RemoteServerHelper.getINSTANCE().completeTask(RemoteServerHelper.TaskType.getUpdate);
         }
     }
 
+    private void sendDataFileIfNeed() {
+        if (DataStorage.getLastUnloadDataFileTime() + DataStorage.getUnloadDataFileInt() < System.currentTimeMillis()) {
+            RemoteServerHelper.getINSTANCE().completeTask(RemoteServerHelper.TaskType.SendData);
+        }
+    }
+
+    private void sendLogsIfNeed() {
+        if (DataStorage.getLastUnloadLogFileTime() + DataStorage.getUnloadLogsInterval() < System.currentTimeMillis()) {
+            RemoteServerHelper.getINSTANCE().completeTask(RemoteServerHelper.TaskType.SendLogs);
+        }
+    }
 
     @Override
     public void onCreate() {
         super.onCreate();
+        AppLogger.writeLog(Codes.ON_CREATE_CODE, Codes.ON_CREATE_MSG);
         serviceThread = new HandlerThread("MainService bgThread");
         serviceThread.start();
         serviceHandler = new Handler(serviceThread.getLooper());
         mLocationManager = new LocationManager();
         App.getContext().registerReceiver(mPhoneStateActionRecerver, intentFilter);
-        SystemBroadcastReceiver.createAlarm(App.getContext(), -1, true);
+        SystemBroadcastReceiver.createAlarm();
         RemoteServerHelper.getINSTANCE();
     }
 
@@ -174,25 +185,31 @@ public class MainService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (!isRunning.get()) {
+            AppLogger.writeLog(Codes.ON_START_CODE, Codes.ON_START_MSG);
             createNotification(false, " start.");
-            serviceHandler.post(mainRunnable);
             serviceHandler.post(b);
+            serviceHandler.post(mainRunnable);
+        }
+        if(mNotification == null){
+            createNotification(true, "");
         }
         return START_STICKY;
-
     }
 
     @Override
     public void onLowMemory() {
         isRunning.set(false);
         sendBroadCastToAssistant(App.getContext());
+        AppLogger.writeLog(Codes.ON_LOW_MEMORY_CODE, Codes.ON_LOW_MEMORY_MSG);
         super.onLowMemory();
     }
+
 
     @Override
     public void onTrimMemory(int level) {
         isRunning.set(false);
         sendBroadCastToAssistant(App.getContext());
+        AppLogger.writeLog(Codes.ON_TRIM_MEMORY_CODE, Codes.ON_TRIM_MEMORY_MSG);
         super.onTrimMemory(level);
     }
 
@@ -200,8 +217,7 @@ public class MainService extends Service {
     public void onTaskRemoved(Intent rootIntent) {
         isRunning.set(false);
         sendBroadCastToAssistant(App.getContext());
-        Intent intent = new Intent();
-        intent.setAction("com.pso.cht_phandroidservice.MainReceiver.ACTION");
+        AppLogger.writeLog(Codes.ON_TASK_REMOVED_CODE, Codes.ON_TASK_REMOVED_MSG);
         super.onTaskRemoved(rootIntent);
     }
 
@@ -218,7 +234,7 @@ public class MainService extends Service {
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
 
-            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+            mNotification = new NotificationCompat.Builder(this, CHANNEL_ID)
                     .setDefaults(Notification.DEFAULT_LIGHTS)
                     .setContentTitle(titel)
                     .setColor(normal ? Color.red(Color.GREEN) : Color.red(Color.RED))
@@ -227,7 +243,7 @@ public class MainService extends Service {
                     .setSmallIcon(normal ? R.drawable.ic_visibility : R.drawable.ic_visibility_err)
                     .setContentIntent(pendingIntent)
                     .build();
-            startForeground(1, notification);
+            startForeground(1, mNotification);
         });
     }
 
@@ -243,29 +259,36 @@ public class MainService extends Service {
             tp.timeChange = (DeviceInfo.TIME_CHANGE ? 1 : 0);
             tp.fictitious = (DeviceInfo.FICTITIOUS_LOC ? 1 : 0);
             tp.gpsState = (DeviceInfo.GPS_STATE ? 1 : 0);
-            tp.activeNetwork = RemoteServerHelper.ConnectionChangeReceiver.activeNetInfoStr;
+            tp.activeNetwork = DataStorage.activeNetInfoStr.get();
             tp.networkState = (DeviceInfo.NETWORK_STATE ? 1 : 0);
             tp.charging = (DeviceInfo.getChargingStatus() ? 1 : 0);
             tp.battery = DeviceInfo.getBatteryLevel();
             tp.bootTime = DeviceInfo.getBootTime();
             tp.satellite = LocationManager.satellitesInfo.get();
             tp.appVersion = BuildConfig.VERSION_NAME;
-            if (lastCheckInstallAppTime == 0 || (System.currentTimeMillis() - lastCheckInstallAppTime) > CHECK_INSTALL_APPS_INTERVAL) {
+            tp.noPermissions = DataStorage.getDeniedPermsString();
+            if (lastCheckInstallAppTime + CHECK_INSTALL_APPS_INTERVAL < deviceTime) {
                 tp.installApp = DeviceInfo.getInstallApplications(App.getContext());
                 tp.memory = DeviceInfo.getMemory();
-                lastCheckInstallAppTime = System.currentTimeMillis();
+                lastCheckInstallAppTime = deviceTime;
             } else {
                 tp.memory = "";
                 tp.installApp = "";
             }
             try {
                 timePointDao.insert(tp);
-                for (Map.Entry<String, Provider> entry : availableProviders.entrySet()) {
-                    Provider provider = entry.getValue();
+                if (availableProviders != null) {
+                    for (Map.Entry<String, Provider> entry : availableProviders.entrySet()) {
+                        Provider provider = entry.getValue();
+                        provider.ownerTime = deviceTime;
+                        providerDao.insert(provider);
+                    }
+                } else {
+                    /*Provider provider = new Provider("",0,0,0,0,0);
                     provider.ownerTime = deviceTime;
-                    providerDao.insert(provider);
+                    providerDao.insert(provider);*/
                 }
-            } catch (Exception e){
+            } catch (Exception e) {
                 AppLogger.printStackTrace(e);
             }
             DeviceInfo.resetValues();
@@ -277,6 +300,7 @@ public class MainService extends Service {
         App.getContext().unregisterReceiver(mPhoneStateActionRecerver);
         App.getBgHandler().removeCallbacksAndMessages(null);
         releaseThreads();
+        AppLogger.writeLog(Codes.ON_DESTROY_CODE, Codes.ON_DESTROY_MSG);
         super.onDestroy();
     }
 
@@ -309,11 +333,11 @@ public class MainService extends Service {
                 case Intent.ACTION_TIMEZONE_CHANGED:
                 case Intent.ACTION_TIME_CHANGED:
                     DeviceInfo.TIME_CHANGE = true;
-                    SystemBroadcastReceiver.createAlarm(App.getContext(), SystemBroadcastReceiver.MINUTE_ALARM_CODE, true);
+                    SystemBroadcastReceiver.createAlarm();
                     final long curTime = System.currentTimeMillis();
-                    DataStorage.setLastUploadTime(curTime);
-                    DataStorage.setNextUpdateTime(curTime + DataStorage.getUpdateInterval());
-                    RemoteServerHelper.getINSTANCE().downloadUpdateFile();
+                    DataStorage.setLastUnloadDataFileTime(curTime);
+                    DataStorage.setLastUpdateTime(curTime + DataStorage.getUpdateInterval());
+                    RemoteServerHelper.getINSTANCE().completeTask(RemoteServerHelper.TaskType.getUpdate);
                     break;
             }
 

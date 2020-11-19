@@ -111,6 +111,7 @@ public class DialogActivity extends AppCompatActivity {
             case REBOOT_DEVICE:
                 tv.setText(R.string.rebootMsg);
                 button.setVisibility(View.INVISIBLE);
+                DataStorage.setLastTimeShowRebootMsg(System.currentTimeMillis());
                 break;
             case NEED_ENABLED_ALL_LOCATION:
                 int api = Build.VERSION.SDK_INT;
@@ -169,7 +170,7 @@ public class DialogActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
             case DataStorage.APP_UPDATE_REQUEST:
-                SystemBroadcastReceiver.createAlarm(this, 0, true);
+                SystemBroadcastReceiver.createAlarm();
 
                 Intent stopService = new Intent(getApplicationContext(), MainService.class);
                 stopService(stopService);

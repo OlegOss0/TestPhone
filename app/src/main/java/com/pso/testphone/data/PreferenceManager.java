@@ -13,20 +13,31 @@ public class PreferenceManager {
     private static SharedPreferences sPref;
     private static SharedPreferences.Editor editor;
     private static final String PREF_NAME = "main pref";
-    private static final long defChUpdateInt = 1000 * 60;
-    private static final long defUploadInterval = 1000 * 60 * 15;
-    private static final long defWriteInterval = 1000 * 15;
-    public static final long defValue = -1;
+    private static final long DEF_UPDATE_INTERVAL = 1000 * 60;
+    private static final long DEF_UNLOAD_DATA_FILE_INTERVAL = 1000 * 60 * 15;
+    private static final long DEF_WRITE_INTERVAL = 1000 * 15;
+    private static final long DEF_UNLOAD_LOG_INTERVAL = 1000 * 60 * 15;
+    private static final long DEF_SHOW_REBOOT_MSG = (1000 * 60 * 60) * 2;
+    public static final long DEF_VALUE = -1;
+
 
     //preferences name
-    private static final String LAST_UPLOAD_TIME_PREF = "last_upload_time";
-    private static final String UPDATE_INTERVAL = "update_interval";
-    private static final String NEXT_UPDATE_TIME = "next_update_time";
-    private static final String UPLOAD_INTERVAL = "upload_interval";
+    private static final String UNLOAD_DATA_FILE_INT_PREF = "upload_interval";
+    private static final String LAST_UNLOAD_DATA_FILE_TIME_PREF = "last_upload_time";
+
+    private static final String UPDATE_INTERVAL_PREF = "update_interval";
+    private static final String LAST_UPDATE_TIME_PREF = "next_update_time";
+
     private static final String WRITE_INTERVAL = "write_interval";
+
+    private static final String LAST_UNLOAD_LOG_TIME = "last_upload_log_interval";
+    private static final String UNLOAD_LOG_INTERVAL = "upload_log_interval";
+
+    private static final String SHOW_REBOOT_MSG_PREF = "show_reboot_msg";
+    private static final String LAST_SHOW_REBOOT_MSG_TIME_PREF = "last_show_reboot_msg_time";
+
     private static final String UPDATE_FILE_NAME = "update_file_name";
     private static final String FIRST_TIME_PREF = "first_time";
-    private static final String SHOW_REBOOT_MSG_PREF = "show_reboot_msg";
     private static final String GPS_TIME = "gps_time";
     private static final String ADDITIONAL_LOGGING_PREF = "additional_logging_pref";
     private static final String UPLOAD_SERVER_ADDRESS_PREF = "upload_server_address_pref";
@@ -42,45 +53,59 @@ public class PreferenceManager {
         return INSTANCE;
     }
 
-    protected long getLastUploadTime() {
-        return sPref.getLong(LAST_UPLOAD_TIME_PREF, -1);
+    //to unload logs file to server
+    protected long getLastUnloadLogsTimePref(){
+        return sPref.getLong(LAST_UNLOAD_LOG_TIME, DEF_VALUE);
     }
-
-    protected void setLastUploadTimePref(long time) {
-        editor.putLong(LAST_UPLOAD_TIME_PREF, time).apply();
+    protected void setLastUnloadLogsTimePref(long time){
+        editor.putLong(LAST_UNLOAD_LOG_TIME, time).apply();
     }
-
-    protected long getUpdateInterval() {
-        return sPref.getLong(UPDATE_INTERVAL, defChUpdateInt);
+    protected long getUnloadLogIntervalPref(){
+        return sPref.getLong(UNLOAD_LOG_INTERVAL, DEF_UNLOAD_LOG_INTERVAL);
     }
-
-    protected long getNextUpdateTime(){
-        return sPref.getLong(NEXT_UPDATE_TIME, defValue);
+    protected void setUnloadLogIntervalPref(long interval) {
+        editor.putLong(UNLOAD_LOG_INTERVAL, interval).apply();
     }
+    //
 
-    protected void setNextUpdateTime(long time){
-        editor.putLong(NEXT_UPDATE_TIME, time).apply();
+    //Update interval
+    protected long getUpdateIntervalPref() {
+        return sPref.getLong(UPDATE_INTERVAL_PREF, DEF_UPDATE_INTERVAL);
     }
-
-    protected void setUpdateInterval(long interval) {
-        editor.putLong(UPDATE_INTERVAL, interval).apply();
+    protected void setUpdateIntervalPref(long interval) {
+        editor.putLong(UPDATE_INTERVAL_PREF, interval).apply();
     }
-
-    protected long getUploadInterval() {
-        return sPref.getLong(UPLOAD_INTERVAL, defUploadInterval);
+    protected long getLastUpdateTimePref(){
+        return sPref.getLong(LAST_UPDATE_TIME_PREF, DEF_VALUE);
     }
-
-    protected void setUpLoadInterval(long interval) {
-        editor.putLong(UPLOAD_INTERVAL, interval).apply();
+    protected void setLastUpdateTimePref(long time){
+        editor.putLong(LAST_UPDATE_TIME_PREF, time).apply();
     }
+    //
 
-    protected long getWriteInterval(){
-        return sPref.getLong(WRITE_INTERVAL, defWriteInterval);
+    //to unload main data file to server
+    protected long getUnloadDataFileIntPref() {
+        return sPref.getLong(UNLOAD_DATA_FILE_INT_PREF, DEF_UNLOAD_DATA_FILE_INTERVAL);
     }
+    protected void setUnloadDataFileIntPref(long interval) {
+        editor.putLong(UNLOAD_DATA_FILE_INT_PREF, interval).apply();
+    }
+    protected long getLastUnloadDataFileTimePref() {
+        return sPref.getLong(LAST_UNLOAD_DATA_FILE_TIME_PREF, DEF_VALUE);
+    }
+    protected void setLastUnloadDataFileTimePref(long time) {
+        editor.putLong(LAST_UNLOAD_DATA_FILE_TIME_PREF, time).apply();
+    }
+    //
 
-    protected void setWriteInterval(long interval){
+    //Main interval write all params in db
+    protected long getWriteIntervalPref(){
+        return sPref.getLong(WRITE_INTERVAL, DEF_WRITE_INTERVAL);
+    }
+    protected void setWriteIntervalPref(long interval){
         editor.putLong(WRITE_INTERVAL, interval).apply();
     }
+    //
 
     protected String getUpdateFileName() {
         return sPref.getString(UPDATE_FILE_NAME, "");
@@ -107,7 +132,7 @@ public class PreferenceManager {
     }
 
     protected long showRebootMsgInTimePref() {
-        return sPref.getLong(SHOW_REBOOT_MSG_PREF, 720000); //millisec in 2 hour
+        return sPref.getLong(SHOW_REBOOT_MSG_PREF, DEF_SHOW_REBOOT_MSG); //millisec in 2 hour
     }
 
     protected void setShowRebootMsgInTimePref(long time) {
@@ -144,5 +169,13 @@ public class PreferenceManager {
 
     public void setNoNeedUpdateTpAssistant() {
         editor.putBoolean(NEED_UPDATE_ASSISTANT_PREF, false).apply();
+    }
+
+    //reboot msg
+    public long getLastTimeShowRebootMsgPref() {
+        return sPref.getLong(LAST_SHOW_REBOOT_MSG_TIME_PREF, DEF_VALUE);
+    }
+    public void setLastTimeShowRebootMsgPref(long time) {
+        editor.putLong(LAST_SHOW_REBOOT_MSG_TIME_PREF, time).apply();
     }
 }

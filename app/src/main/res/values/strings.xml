@@ -7,8 +7,13 @@
     <string name="updateBtnTxt">Update</string>
     <string name="installBtnTxt">Install</string>
     <string name="settings">Settings</string>
-    <string name="check_internet_connection">Check internet connection!</string>
     <string name="addition_loggin_menu_item_txt">Enable additional logging</string>
     <string name="clear_db_menu_item_txt">Clear data base</string>
     <string name="enter_password_txt">Enter password</string>
+    <string name="send_to_server">Send to server</string>
+    <string name="clear_db">Clear DB</string>
+    <string name="check_update">Check update</string>
+    <string name="send_logs">Send logs</string>
+    <string name="clear_info">Clear Info</string>
+    <string name="closed">Closed</string>
 </resources>
