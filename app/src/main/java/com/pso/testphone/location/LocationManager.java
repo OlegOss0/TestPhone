@@ -13,6 +13,7 @@ import android.os.Looper;
 import android.util.Log;
 
 import com.pso.testphone.App;
+import com.pso.testphone.AppLogger;
 import com.pso.testphone.data.DataStorage;
 import com.pso.testphone.data.DeviceInfo;
 import com.pso.testphone.PermissionHelper;
@@ -32,8 +33,8 @@ import static android.location.GnssStatus.CONSTELLATION_QZSS;
 import static android.location.GnssStatus.CONSTELLATION_SBAS;
 
 public class LocationManager {
-    private LocationListenerNetwork networkLocationListener;
-    private LocationListenerGPS gpsLocationListener;
+    private LocationListenerNetwork networkLocationListener = new LocationListenerNetwork();
+    private LocationListenerGPS gpsLocationListener = new LocationListenerGPS();
     private mGnssStatusCallback mGnssStatusCallback;
     private GpsStatusListener mGpsStatusListener;
     private android.location.LocationManager locationManager;
@@ -41,15 +42,13 @@ public class LocationManager {
     private static final String TAG = LocationManager.class.getSimpleName();
 
     public LocationManager(){
-        locationManager = (android.location.LocationManager) App.getContext().getSystemService(Context.LOCATION_SERVICE);
+        //locationManager = (android.location.LocationManager) App.getContext().getSystemService(Context.LOCATION_SERVICE);
     }
 
     @SuppressLint("MissingPermission")
     public void initLocationListeners() {
         locationManager = (android.location.LocationManager) App.getContext().getSystemService(Context.LOCATION_SERVICE);
         assert locationManager != null;
-        networkLocationListener = new LocationListenerNetwork();
-        gpsLocationListener = new LocationListenerGPS();
         locationManager.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 5000, 10, gpsLocationListener, App.getBgHandler().getLooper());
         locationManager.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 5000, 10, networkLocationListener, App.getBgHandler().getLooper());
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -86,7 +85,7 @@ public class LocationManager {
                 }
                 Provider provider = new Provider(providerName, location.getTime(), formatDouble(location.getLatitude(), 4)
                         , formatDouble(location.getLongitude(), 4), formatDouble(location.getAccuracy(), 0), 0);
-                Log.e(TAG, "Provider = " + provider.name + ", longi = " + provider.longitude + ", lat = " + provider.latitude + ", accurate = " + provider.accurate);
+                //Log.e(TAG, "Provider = " + provider.name + ", longi = " + provider.longitude + ", lat = " + provider.latitude + ", accurate = " + provider.accurate);
 
                 if (minTime == -1 && bestAccuracy == -1) {
                     minTime = time;
@@ -196,25 +195,25 @@ public class LocationManager {
         @Override
         public void onLocationChanged(Location location) {
             if (location != null) {
-                Log.i(TAG, "onLocationChanged in Network");
+                AppLogger.i(TAG, "onLocationChanged in Network");
             }
         }
 
         @Override
         public void onStatusChanged(String provider, int status, Bundle extras) {
-            Log.i(TAG, "onStatusChanged provider" + provider);
+           AppLogger.i(TAG, "onStatusChanged provider" + provider);
 
         }
 
         @Override
         public void onProviderEnabled(String provider) {
-            Log.i(TAG, "onProviderEnabled " + provider);
+            AppLogger.i(TAG, "onProviderEnabled " + provider);
 
         }
 
         @Override
         public void onProviderDisabled(String provider) {
-            Log.i(TAG, "onProviderDisabled " + provider);
+            AppLogger.i(TAG, "onProviderDisabled " + provider);
         }
     }
 
@@ -223,25 +222,25 @@ public class LocationManager {
         @Override
         public void onLocationChanged(Location location) {
             if (location != null) {
-                Log.i(TAG, "onLocationChanged in GPS");
+                AppLogger.i(TAG, "onLocationChanged in GPS");
             }
         }
 
         @Override
         public void onStatusChanged(String provider, int status, Bundle extras) {
-            Log.i(TAG, "onStatusChanged provider" + provider);
+            AppLogger.i(TAG, "onStatusChanged provider" + provider);
 
         }
 
         @Override
         public void onProviderEnabled(String provider) {
-            Log.i(TAG, "onProviderEnabled " + provider);
+            AppLogger.i(TAG, "onProviderEnabled " + provider);
 
         }
 
         @Override
         public void onProviderDisabled(String provider) {
-            Log.i(TAG, "onProviderDisabled " + provider);
+            AppLogger.i(TAG, "onProviderDisabled " + provider);
         }
     }
 }

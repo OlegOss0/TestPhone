@@ -24,6 +24,7 @@ import com.pso.testphone.data.Codes;
 import com.pso.testphone.data.DataStorage;
 import com.pso.testphone.data.DeviceInfo;
 import com.pso.testphone.db.DBHelper;
+import com.pso.testphone.gui.GuiHelper;
 import com.pso.testphone.gui.MainActivityPresenter;
 import com.pso.testphone.interfaces.ServerTaskListener;
 
@@ -71,8 +72,10 @@ public class RemoteServerHelper {
     private final static String SERVER_UPDATE_ADRESS = "https://apk.ak-cloud.ru/";
     private final static String GOOGLE_ADRESS = "http://google.com";
     private final static String PROPERTIES_FILE = "properties";
+    private final static String PROPERTIES_FILE_TEST = "properties_test";
     private final static String folder = "uploads";
     private final static String logs_folder = "logs";
+    private final static int REMOVED_TASK_TIME_OUT = 1000 * 10;
     private AtomicReference<States> mState = new AtomicReference<>(States.IDLE);
     //private static String fileName;
     private static RemoteServerHelper INSTANCE;
@@ -84,14 +87,28 @@ public class RemoteServerHelper {
     private AtomicReference<LinkedList<TaskType>> taskQueue = new AtomicReference<>(new LinkedList<>());
     private AtomicReference<TaskType> currTask = new AtomicReference<>();
     private Handler mainHandler = new Handler();
-
-    private final int SEND_FILE_MSG = 4431;
-
+    private static String mNewAppVersion = "";
 
     private final String DAY_CHAR = "d";
     private final String HOUR_CHAR = "h";
     private final String MIN_CHAR = "m";
     private final String SEC_CHAR = "s";
+
+    private static final String AIR_MODE = "air_mode";
+    private static final String TIME_CH = "time_change";
+    private static final String FAKE_COORD = "used_fake_coordinates";
+    private static final String COORD = "coordinates";
+    private static final String SATELLITES = "satellites";
+    private static final String GPS_ERROR = "gps_error";
+    private static final String CHARGING = "charging";
+    private static final String BATTERY = "battery";
+    private static final String MEMORY = "memory_cpace";
+    private static final String APPS = "installed_apps";
+    private static final String DENIED_PERMS = "denied_perms";
+    private static final String NETWORK_STATES = "network_states";
+
+    private static final String ON = "on";
+    private static final String OFF = "off";
 
     enum States {IDLE, BUSY}
 
@@ -226,6 +243,12 @@ public class RemoteServerHelper {
                     downloadPropertiesFile();
                 });
                 break;
+            case getAppNewVer:
+                App.getBgHandler().post(() -> {
+                    currTask.set(TaskType.getAppNewVer);
+                    downloadNewVersionApp(mNewAppVersion);
+                    mNewAppVersion = "";
+                });
         }
     }
 
@@ -413,7 +436,7 @@ public class RemoteServerHelper {
             String finalResultStr = "";
             HttpURLConnection urlConnection = null;
             try {
-                String urlStr = SERVER_UPDATE_ADRESS + PROPERTIES_FILE;
+                String urlStr = SERVER_UPDATE_ADRESS + (BuildConfig.DEBUG ? PROPERTIES_FILE_TEST : PROPERTIES_FILE);
                 AppLogger.writeLog(Codes.START_CONNECTION_CODE, Codes.START_CONNECTION_MSG + " " + urlStr);
                 AppLogger.writeNetworkInfoLog();
                 URL url = new URL(urlStr);
@@ -445,13 +468,168 @@ public class RemoteServerHelper {
             }
             if (!finalResultStr.isEmpty()) {
                 parseAndSetProperies(finalResultStr);
-            }else{
+            } else {
                 AppLogger.writeLog(Codes.NO_DATA_CODE, Codes.NO_DATA_MSG);
-                MainActivityPresenter.addMsg(true,  Codes.NO_DATA_MSG);
+                MainActivityPresenter.addMsg(true, Codes.NO_DATA_MSG);
             }
             removeTaskAndGoToIdle(TaskType.getUpdate);
         }
     }
+
+    ArrayList<String> notSetValues = new ArrayList<>();
+
+    private void parseAndSetProperies(String finalResultStr) {
+        String version = "";
+        String updateInterval = "";
+        String unloadDataFileInt = "";
+        String writeInterval = "";
+        String showRebootMsg = "";
+        String unloadServerAddress = "";
+        String password = "";
+        String uploadLogInt = "";
+        //exchange
+        String exchangeInt = "";
+        //telemetry settings
+        try {
+            JSONObject jsonObject = new JSONObject(finalResultStr);
+            String VERSION_STR = "version";
+            version = jsonObject.getString(VERSION_STR);
+            String UPDATE_STR = "ch_update_int";
+            updateInterval = jsonObject.getString(UPDATE_STR);
+            String UNLOAD_STR = "unload_int";
+            unloadDataFileInt = jsonObject.getString(UNLOAD_STR);
+            String WR_INT_STR = "write_int";
+            writeInterval = jsonObject.getString(WR_INT_STR);
+            String SHOW_REBOOT_MSG = "show_reboot_msg";
+            showRebootMsg = jsonObject.getString(SHOW_REBOOT_MSG);
+            String UPLOAD_SERVER = "upload_server";
+            unloadServerAddress = jsonObject.getString(UPLOAD_SERVER);
+            String PASSWORD = "password_admin_menu";
+            password = jsonObject.getString(PASSWORD);
+            String UP_LOGS = "unload_logs";
+            uploadLogInt = jsonObject.getString(UP_LOGS);
+
+            //exchange
+            String EX_TIME = "exchange_time";
+            exchangeInt = jsonObject.getString(EX_TIME);
+
+            //telemetry_settings
+            String TELEMETRY_SET_OBJ = "telemetry_settings";
+
+            JSONObject tel_settings = jsonObject.getJSONObject(TELEMETRY_SET_OBJ);
+
+            setTelemetrySetting(AIR_MODE, tel_settings.getString(AIR_MODE));
+            setTelemetrySetting(TIME_CH, tel_settings.getString(TIME_CH));
+            setTelemetrySetting(FAKE_COORD, tel_settings.getString(FAKE_COORD));
+            setTelemetrySetting(FAKE_COORD, tel_settings.getString(FAKE_COORD));
+            setTelemetrySetting(COORD, tel_settings.getString(COORD));
+            setTelemetrySetting(SATELLITES, tel_settings.getString(SATELLITES));
+            setTelemetrySetting(GPS_ERROR, tel_settings.getString(GPS_ERROR));
+            setTelemetrySetting(CHARGING, tel_settings.getString(CHARGING));
+            setTelemetrySetting(BATTERY, tel_settings.getString(BATTERY));
+            setTelemetrySetting(MEMORY, tel_settings.getString(MEMORY));
+            setTelemetrySetting(APPS, tel_settings.getString(APPS));
+            setTelemetrySetting(DENIED_PERMS, tel_settings.getString(DENIED_PERMS));
+            setTelemetrySetting(NETWORK_STATES, tel_settings.getString(NETWORK_STATES));
+            DataStorage.neadDownloadSettings.set(false);
+        } catch (JSONException e) {
+            AppLogger.writeLogEx(e);
+            e.printStackTrace();
+            return;
+        }
+        if (needUpdate(version)) {
+            taskQueue.get().addFirst(TaskType.getAppNewVer);
+            mNewAppVersion = version;
+        } else {
+            removeLastUpdateFiles();
+        }
+        if (BuildConfig.DEBUG) {
+            unloadDataFileInt = "2 m";
+            updateInterval = "3 m";
+        }
+
+        if (setValue(ValueType.UPLOAD_SERVER_ADDRESS, unloadServerAddress) && setValue(ValueType.ADMIN_PASS, password) && setValue(ValueType.WRITE_INT, writeInterval)
+                && setValue(ValueType.UNLOAD_DATA_FILE_INT, unloadDataFileInt) && setValue(ValueType.UPDATE_INT, updateInterval) && setValue(ValueType.SHOW_REBOOT_MSG_TIME, showRebootMsg)
+                && setValue(ValueType.UNLOAD_LOG_INT, uploadLogInt) && setValue(ValueType.EXCHANGE_INT, exchangeInt)) {
+            AppLogger.writeLog(VALUES_SET_CODE, VALUES_SET);
+            MainActivityPresenter.addMsg(true, VALUES_SET);
+            DataStorage.setLastUpdateTime(System.currentTimeMillis());
+        } else {
+            AppLogger.writeLog(VALUES_SET_CODE, VALUES_NOT_SET);
+            MainActivityPresenter.addMsg(true, VALUES_NOT_SET);
+        }
+        notSetValues.clear();
+    }
+
+    public void removeLastUpdateFiles() {
+        File[] files = App.getContext().getFilesDir().listFiles();
+        if (files != null && files.length > 0) {
+            for (File f : files) {
+                boolean deleted;
+                String fName = f.getName();
+                if (fName.contains(DataStorage.APP_NAME)) {
+                    deleted = f.delete();
+                    File[] files1 = App.getContext().getFilesDir().listFiles();
+                    int l = files1.length;
+                }
+            }
+        }
+    }
+
+    public boolean updateFileExist() {
+        File installApk = new File(App.getContext().getFilesDir() + "/" + DataStorage.getUpdateFileName());
+        return installApk.exists();
+    }
+
+    private boolean setTelemetrySetting(String setting, String value) {
+        try {
+            switch (setting) {
+                case AIR_MODE:
+                    DataStorage.setAirModeCheckingSettings(strToBool(value));
+                    return true;
+                case TIME_CH:
+                    DataStorage.setTimeChangeCheckingSettings(strToBool(value));
+                    return true;
+                case FAKE_COORD:
+                    DataStorage.setFakeCoordCheckingSettings(strToBool(value));
+                    return true;
+                case COORD:
+                    DataStorage.setCoordCheckingSettings(strToBool(value));
+                    return true;
+                case SATELLITES:
+                    DataStorage.setSatellitesCheckingSettings(strToBool(value));
+                    return true;
+                case GPS_ERROR:
+                    DataStorage.setGpsErrorCheckingSettings(strToBool(value));
+                    return true;
+                case CHARGING:
+                    DataStorage.setChargeCheckingSettings(strToBool(value));
+                    return true;
+                case BATTERY:
+                    DataStorage.setBatteryCheckingSettings(strToBool(value));
+                    return true;
+                case MEMORY:
+                    DataStorage.setMemoryCheckingSettings(strToBool(value));
+                    return true;
+                case APPS:
+                    DataStorage.setAppsCheckingSettings(strToBool(value));
+                    return true;
+                case DENIED_PERMS:
+                    DataStorage.setPermissionsCheckingSettings(strToBool(value));
+                    return true;
+                case NETWORK_STATES:
+                    DataStorage.setNetworkStateCheckingSettings(strToBool(value));
+                    return true;
+                default:
+                    return false;
+            }
+        } catch (IllegalAccessException e) {
+            AppLogger.writeLogEx(e);
+            notSetValues.add(setting);
+        }
+        return false;
+    }
+
 
     private void removeTaskAndGoToIdle(TaskType taskType) {
         currTask.set(TaskType.Idle);
@@ -460,16 +638,21 @@ public class RemoteServerHelper {
         if (taskQueue.get().isEmpty()) {
             return;
         } else {
-            mainHandler.post(() ->{
+            mainHandler.post(() -> {
                 completeTask(taskQueue.get().getFirst());
             });
         }
     }
 
+    private void delayRemoveTaskAndGoToIdle(TaskType taskType) {
+        App.getBgHandler().postDelayed(() -> {
+            removeTaskAndGoToIdle(taskType);
+        }, REMOVED_TASK_TIME_OUT);
+    }
+
 
     @SuppressLint("SetWorldReadable")
     private void downloadNewVersionApp(final String version) {
-        if (!DataStorage.networkAvailable.get()) return;
         synchronized (lock) {
             mState.set(States.BUSY);
             boolean result = false;
@@ -531,70 +714,23 @@ public class RemoteServerHelper {
             }
             if (result) {
                 DataStorage.setUpdateFileName(remoteFile);
-                App.getMainHandler().post(() -> {
-                    notifyListeners(ServerTaskListener.UPDATE_APP);
-                });
+                App.getMainHandler().postDelayed(() -> {
+                    GuiHelper.startDialogActivity(ServerTaskListener.UPDATE_APP);
+                }, 500);
             }
         }
-        mState.set(States.IDLE);
+        delayRemoveTaskAndGoToIdle(TaskType.getAppNewVer);
     }
 
-    private void parseAndSetProperies(String finalResultStr) {
-        String version = "";
-        String updateInterval = "";
-        String unloadDataFileInt = "";
-        String writeInterval = "";
-        String showRebootMsg = "";
-        String unloadServerAddress = "";
-        String password = "";
-        String uploadLogInt = "";
-        try {
-            JSONObject jsonObject = new JSONObject(finalResultStr);
-            String VERSION_STR = "version";
-            version = jsonObject.getString(VERSION_STR);
-            String UPDATE_STR = "ch_update_int";
-            updateInterval = jsonObject.getString(UPDATE_STR);
-            String UNLOAD_STR = "unload_int";
-            unloadDataFileInt = jsonObject.getString(UNLOAD_STR);
-            String WR_INT_STR = "write_int";
-            writeInterval = jsonObject.getString(WR_INT_STR);
-            String SHOW_REBOOT_MSG = "show_reboot_msg";
-            showRebootMsg = jsonObject.getString(SHOW_REBOOT_MSG);
-            String UPLOAD_SERVER = "upload_server";
-            unloadServerAddress = jsonObject.getString(UPLOAD_SERVER);
-            String PASSWORD = "password_admin_menu";
-            password = jsonObject.getString(PASSWORD);
-            String UP_LOGS = "unload_logs";
-            uploadLogInt = jsonObject.getString(UP_LOGS);
-        } catch (JSONException e) {
-            AppLogger.writeLogEx(e);
-            return;
-        }
-
-        if (needUpdate(version)) {
-            String finalVersion = version;
-            App.getBgHandler().postDelayed(() -> {
-                downloadNewVersionApp(finalVersion);
-            }, 500);
-        }
-        if (BuildConfig.DEBUG) {
-            unloadDataFileInt = "2 m";
-            updateInterval = "3 m";
-        }
-
-        if (setValue(ValueType.UPLOAD_SERVER_ADDRESS, unloadServerAddress) && setValue(ValueType.ADMIN_PASS, password) && setValue(ValueType.WRITE_INT, writeInterval)
-                && setValue(ValueType.UNLOAD_DATA_FILE_INT, unloadDataFileInt) && setValue(ValueType.UPDATE_INT, updateInterval) && setValue(ValueType.SHOW_REBOOT_MSG_TIME, showRebootMsg)
-                && setValue(ValueType.UNLOAD_LOG_INT, uploadLogInt)) {
-            AppLogger.writeLog(VALUES_SET_CODE, VALUES_SET);
-            MainActivityPresenter.addMsg(true, VALUES_SET);
-            DataStorage.setLastUpdateTime(System.currentTimeMillis());
-        }else{
-            AppLogger.writeLog(VALUES_SET_CODE, VALUES_NOT_SET);
-            MainActivityPresenter.addMsg(true, VALUES_NOT_SET);
+    private boolean strToBool(String value) throws IllegalAccessException {
+        if (value.equals(ON) || value.equals(OFF)) {
+            return value.equals(ON);
+        } else {
+            throw new IllegalAccessException("Can't set value " + value);
         }
     }
 
-    private enum ValueType {WRITE_INT, UNLOAD_DATA_FILE_INT, UPDATE_INT, SHOW_REBOOT_MSG_TIME, UPLOAD_SERVER_ADDRESS, ADMIN_PASS, UNLOAD_LOG_INT}
+    private enum ValueType {WRITE_INT, UNLOAD_DATA_FILE_INT, UPDATE_INT, SHOW_REBOOT_MSG_TIME, UPLOAD_SERVER_ADDRESS, ADMIN_PASS, UNLOAD_LOG_INT, EXCHANGE_INT}
 
     private boolean setValue(ValueType type, String value) {
         switch (type) {
@@ -607,36 +743,54 @@ public class RemoteServerHelper {
             case UPDATE_INT:
             case SHOW_REBOOT_MSG_TIME:
             case UNLOAD_LOG_INT:
+            case EXCHANGE_INT:
                 return setTimeValue(type, value);
         }
         return false;
+    }
+
+    private long convertPropValueToLong(String value) {
+        long newInterval = -1;
+        String regex = "\\d+";
+        if(value.matches(regex)){
+            return Long.parseLong(value);
+        }
+        try {
+            long timeValue = Long.parseLong((value.substring(0, value.indexOf(' '))));
+            String timeUnitStr = value.substring(value.lastIndexOf(' ') + 1);
+            newInterval = convertToCalendarValue(timeUnitStr, timeValue);
+        } catch (StringIndexOutOfBoundsException e) {
+            AppLogger.printStackTrace(e);
+            AppLogger.writeLogEx(e);
+            MainActivityPresenter.addMsg(true, "Exception when trying to read data from a database");
+        }
+        return newInterval;
     }
 
     private boolean setTimeValue(ValueType type, String value) {
         if (value.isEmpty()) {
             return false;
         } else {
-            long timeValue = Long.parseLong((value.substring(0, value.indexOf(' '))));
-            String timeUnitStr = value.substring(value.lastIndexOf(' ') + 1);
-            long newInterval = convertToCalendarValue(timeUnitStr, timeValue);
-            if (newInterval != -1) {
-                switch (type) {
-                    case WRITE_INT:
-                        DataStorage.setWriteInterval(newInterval);
-                        return true;
-                    case UNLOAD_DATA_FILE_INT:
-                        DataStorage.setUnloadDataFileInt(newInterval);
-                        return true;
-                    case UPDATE_INT:
-                        DataStorage.setUpdateInterval(newInterval);
-                        return true;
-                    case SHOW_REBOOT_MSG_TIME:
-                        DataStorage.setShowRebootMsgInTime(newInterval);
-                        return true;
-                    case UNLOAD_LOG_INT:
-                        DataStorage.setUnloadLogsInterval(newInterval);
-                        return true;
-                }
+            long newInterval = convertPropValueToLong(value);
+            switch (type) {
+                case WRITE_INT:
+                    DataStorage.setWriteInterval(newInterval);
+                    return true;
+                case UNLOAD_DATA_FILE_INT:
+                    DataStorage.setUnloadDataFileInt(newInterval);
+                    return true;
+                case UPDATE_INT:
+                    DataStorage.setUpdateInterval(newInterval);
+                    return true;
+                case SHOW_REBOOT_MSG_TIME:
+                    DataStorage.setShowRebootMsgInTime(newInterval);
+                    return true;
+                case UNLOAD_LOG_INT:
+                    DataStorage.setUnloadLogsInterval(newInterval);
+                    return true;
+                case EXCHANGE_INT:
+                    DataStorage.setExchangeTime(newInterval);
+                    return true;
             }
         }
         return false;
@@ -688,6 +842,7 @@ public class RemoteServerHelper {
             if (activeNetInfo == null || !activeNetInfo.isConnected()/*|| !activeNetInfo.isAvailable()*/) {
                 DataStorage.networkAvailable.set(false);
                 DataStorage.activeNetInfoStr.set("");
+                refreshIp();
                 return;
             }
             if (activeNetInfo.getType() == ConnectivityManager.TYPE_WIFI) {
@@ -751,6 +906,7 @@ public class RemoteServerHelper {
                 if (!DataStorage.networkAvailable.get()) {
                     DataStorage.ip.set("");
                     AppLogger.e("IP", "IP = " + DataStorage.ip);
+                    MainActivityPresenter.refreshTitle();
                     return;
                 }
                /* boolean ipreceived = false;
@@ -758,13 +914,13 @@ public class RemoteServerHelper {
                     ipreceived = getIpFromIpInfo();
                 }catch (Exception e){}*/
                 /*if (!ipreceived) {*/
-                    for (String url : IP_SERVICE_URLS) {
-                        if (getIpFromService(url)) {
-                            MainActivityPresenter.refreshTitle();
-                            return;
-                        }
+                for (String url : IP_SERVICE_URLS) {
+                    if (getIpFromService(url)) {
+                        MainActivityPresenter.refreshTitle();
+                        return;
                     }
-                    MainActivityPresenter.refreshTitle();
+                }
+                MainActivityPresenter.refreshTitle();
 
             });
         }

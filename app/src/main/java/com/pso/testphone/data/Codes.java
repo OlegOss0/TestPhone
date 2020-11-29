@@ -58,6 +58,8 @@ public class Codes {
     public static final String JSONEXCEPTION_EXCEPTION_MSG = "JSONException";
     public static final String MALFORMED_URL_EXCEPTION_CODE = "045";
     public static final String MALFORMED_URL_EXCEPTION_MSG = "MalformedURLException";
+    public static final String STRING_IND_OUT_OF_BOUND_EXCEPTION_CODE = "046";
+    public static final String STRING_IND_OUT_OF_BOUND_EXCEPTION_MSG= "StringIndexOutOfBoundsException";
 
     public static final String TASK_CODE = "050";
     public static final String TASK_DELAY_MSG = "Task was delayed ";

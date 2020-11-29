@@ -1,5 +1,7 @@
 package com.pso.testphone.data;
 
+import android.os.Build;
+
 import com.pso.testphone.BuildConfig;
 
 import java.util.ArrayList;
@@ -7,12 +9,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+
 public class DataStorage {
     public static final String APP_NAME = "test_phone";
     public static final String APP_ASSISTANT_FILE_NAME = "tp_assistant.apk";
     public static final String APP_ASSISTANT_NAME = "TPAssistant";
     public static final String TP_ASSISTANT_PACKAGE = "com.pso.tpassistant";
     public static final String TP_ASSISTANT_PACKAGE_SERVICE_CLASS = "com.pso.tpassistant.MainReceiver";
+    public static String TP_ASSISTANT_VER = "";
 
     public static final int APP_UPDATE_REQUEST = 0x0000112;
     public static final int APP_INSTALL_ASSISTANT_REQUEST = 0x0000113;
@@ -38,7 +42,9 @@ public class DataStorage {
     public static AtomicReference<String> ip = new AtomicReference<>("");
     public static AtomicReference<String> activeNetInfoStr = new AtomicReference<>("");
     private static ArrayList<String> deniedPermsList = new ArrayList<>();
-    private static AtomicLong exchangeAssistantTime = new AtomicLong(1000 * 3);
+    private static AtomicLong exchangeAssistantTime = new AtomicLong(PreferenceManager.getINSTANCE().getExchangeTimePref());
+
+    public static AtomicBoolean neadDownloadSettings = new AtomicBoolean(true);
 
     public static boolean isAdditionalLoggingEnabled(){
         return additionalLogginEnabled.get();
@@ -217,7 +223,122 @@ public class DataStorage {
         deniedPermsList.clear();
     }
 
-    public static long getAssExchangeTime() {
+    public static long getExchangeTime() {
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q){
+            return 3000;
+        }
         return exchangeAssistantTime.get();
+    }
+    public static void setExchangeTime(long time) {
+        exchangeAssistantTime.set(time);
+        PreferenceManager.getINSTANCE().setExchangeTimePref(time);
+    }
+
+    private static AtomicBoolean airModeChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getAirModeCheckingPref());
+    public static void setAirModeCheckingSettings(boolean enable) {
+        airModeChecking.set(enable);
+        PreferenceManager.getINSTANCE().setdAirModeCheckingPref(enable);
+    }
+    public static boolean isAirModeCheckingEnabled(){
+        return airModeChecking.get();
+    }
+
+    private static AtomicBoolean timeChangeChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getTimeChangeCheckingPref());
+    public static void setTimeChangeCheckingSettings(boolean enable) {
+        timeChangeChecking.set(enable);
+        PreferenceManager.getINSTANCE().setTimeChangeCheckingPref(enable);
+    }
+    public static boolean isTimeChangeCheckingEnabled(){
+        return timeChangeChecking.get();
+    }
+
+    private static AtomicBoolean fakeCoordChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getFakeCoordCheckingPref());
+    public static void setFakeCoordCheckingSettings(boolean enable) {
+        fakeCoordChecking.set(enable);
+        PreferenceManager.getINSTANCE().setFakeCoordCheckingPref(enable);
+    }
+    public static boolean isFakeCoordCheckingEnabled(){
+        return fakeCoordChecking.get();
+    }
+
+    private static AtomicBoolean coordChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getCoordCheckingPref());
+    public static void setCoordCheckingSettings(boolean enable) {
+        coordChecking.set(enable);
+        PreferenceManager.getINSTANCE().setCoordCheckingPref(enable);
+    }
+    public static boolean isCoordCheckingEnabled(){
+        return coordChecking.get();
+    }
+
+    private static AtomicBoolean satellitesChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getSatellitesCheckingPref());
+    public static void setSatellitesCheckingSettings(boolean enable) {
+        satellitesChecking.set(enable);
+        PreferenceManager.getINSTANCE().setSatellitesCheckingPref(enable);
+    }
+    public static boolean isSatellitesCheckingEnabled(){
+        return satellitesChecking.get();
+    }
+
+    private static AtomicBoolean gpsErrorChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getGpsErrorCheckingPref());
+    public static void setGpsErrorCheckingSettings(boolean enabled) {
+        gpsErrorChecking.set(enabled);
+        PreferenceManager.getINSTANCE().setGpsErrorCheckingPref(enabled);
+    }
+    public static boolean isGpsErrorCheckingEnabled(){
+        return gpsErrorChecking.get();
+    }
+
+    private static AtomicBoolean chargeChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getChargeCheckingPref());
+    public static void setChargeCheckingSettings(boolean enable) {
+        chargeChecking.set(enable);
+        PreferenceManager.getINSTANCE().setChargeCheckingPref(enable);
+    }
+    public static boolean isChargeCheckingEnabled(){
+        return chargeChecking.get();
+    }
+
+    private static AtomicBoolean batteryChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getBatteryCheckingPref());
+    public static void setBatteryCheckingSettings(boolean enable) {
+        batteryChecking.set(enable);
+        PreferenceManager.getINSTANCE().setBatteryCheckingPref(enable);
+    }
+    public static boolean isBatteryCheckingEnabled(){
+        return batteryChecking.get();
+    }
+
+    private static AtomicBoolean memoryChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getMemoryCheckingPref());
+    public static void setMemoryCheckingSettings(boolean enable) {
+        memoryChecking.set(enable);
+        PreferenceManager.getINSTANCE().setMemoryCheckingPref(enable);
+    }
+    public static boolean isMemoryCheckingEnabled(){
+        return memoryChecking.get();
+    }
+
+    private static AtomicBoolean appsChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getAppsCheckingPref());
+    public static void setAppsCheckingSettings(boolean enable) {
+        appsChecking.set(enable);
+        PreferenceManager.getINSTANCE().setAppsCheckingPref(enable);
+    }
+    public static boolean isAppsCheckingEnabled(){
+        return appsChecking.get();
+    }
+
+    private static AtomicBoolean permissionsChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getPermsCheckingPref());
+    public static void setPermissionsCheckingSettings(boolean enable) {
+        permissionsChecking.set(enable);
+        PreferenceManager.getINSTANCE().setPermsCheckingPref(enable);
+    }
+    public static boolean isPermissionsCheckingEnabled(){
+        return permissionsChecking.get();
+    }
+
+    private static AtomicBoolean networkChecking = new AtomicBoolean(PreferenceManager.getINSTANCE().getNetworkCheckingPref());
+    public static void setNetworkStateCheckingSettings(boolean enable) {
+        networkChecking.set(enable);
+        PreferenceManager.getINSTANCE().setNetworkCheckingPref(enable);
+    }
+    public static boolean isNetworkCheckingEnabled(){
+        return networkChecking.get();
     }
 }

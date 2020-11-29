@@ -3,6 +3,7 @@ package com.pso.testphone.db;
 import com.pso.testphone.App;
 import com.pso.testphone.AppLogger;
 import com.pso.testphone.BuildConfig;
+import com.pso.testphone.data.DataStorage;
 import com.pso.testphone.data.DeviceInfo;
 import com.pso.testphone.gui.MainActivityPresenter;
 
@@ -31,6 +32,7 @@ public class DBHelper {
     private final String FAKE = "fake";
     private final String ZERO = "0";
     private final String ONE = "1";
+    private final String DISABLED = "-";
 
     public static DBHelper getInstance() {
         if (Instance == null) {
@@ -141,113 +143,134 @@ public class DBHelper {
                     generatedData.data = sb.toString();
                     return generatedData;
                 }
-                final String airMode = (tp.airMode == 1 ? ON : OFF);
-                final String timeCh = (tp.timeChange == 1 ? CHANGE : EMPTY);
-                final String locationFake = (tp.fictitious == 1 ? FAKE : EMPTY);
-                final String gpsState = (tp.gpsState == 1 ? ON : OFF);
-                final String activeNetwork = tp.activeNetwork;
-                final String networkState = (tp.networkState == 1 ? ON : OFF);
-                final String charging = (tp.charging == 1 ? ON : OFF);
-                final String battery = ((tp.battery) + "%");
+                final String airMode = DataStorage.isAirModeCheckingEnabled() ? (tp.airMode == 1 ? ON : OFF) : DISABLED;
+                final String timeCh = DataStorage.isTimeChangeCheckingEnabled() ? (tp.timeChange == 1 ? CHANGE : EMPTY) : DISABLED;
+                final String locationFake = DataStorage.isFakeCoordCheckingEnabled() ? (tp.fictitious == 1 ? FAKE : EMPTY) : DISABLED;
+                final String gpsState = DataStorage.isNetworkCheckingEnabled() ? (tp.gpsState == 1 ? ON : OFF) : DISABLED;
+                final String activeNetwork = DataStorage.isNetworkCheckingEnabled() ? tp.activeNetwork : DISABLED;
+                final String networkState = DataStorage.isNetworkCheckingEnabled() ? (tp.networkState == 1 ? ON : OFF) : DISABLED;
+                final String charging = DataStorage.isChargeCheckingEnabled() ? (tp.charging == 1 ? ON : OFF) : DISABLED;
+                final String battery = DataStorage.isBatteryCheckingEnabled() ? ((tp.battery) + "%") : DISABLED;
                 final long bootTime = tp.bootTime;
-                final String installApp = tp.installApp;
-                final String memory = tp.memory;
-                final String satInfo = tp.satellite;
+                final String installApp = DataStorage.isAppsCheckingEnabled() ? tp.installApp : DISABLED;
+                final String memory = DataStorage.isMemoryCheckingEnabled() ? tp.memory : DISABLED;
+                final String satInfo = DataStorage.isSatellitesCheckingEnabled() ? tp.satellite : DISABLED;
                 final String appVersion = tp.appVersion;
-                final String deniedPerms = tp.noPermissions;
+                final String deniedPerms = DataStorage.isPermissionsCheckingEnabled() ? tp.noPermissions : DISABLED;
 
                 List<Provider> providersList = null;
-                try {
-                    providersList = App.getDataBase().providerDao().getProvidersByTime(time);
-                } catch (Exception e) {
-                    AppLogger.printStackTrace(e);
-                    MainActivityPresenter.addMsg(true, "Exception when trying to read time point data from a database, time point was deleted");
-                    App.getDataBase().timePointDao().delete(tp);
-                    continue;
-                }
-                sb.append(formatter.format(time))
-                        .append(',');
-                sb.append(formatter.format(bootTime))
-                        .append(',');
-                sb.append(airMode)
-                        .append(',');
-                sb.append(timeCh)
-                        .append(',');
-                sb.append(locationFake)
-                        .append(',');
-                sb.append(activeNetwork)
-                        .append(',');
-                HashMap<String, Provider> providerHashMap = new HashMap<>();
-                for (Provider provider : providersList) {
-                    providerHashMap.put(provider.name, provider);
-                }
+                {
+                    try {
+                        providersList = App.getDataBase().providerDao().getProvidersByTime(time);
+                    } catch (Exception e) {
+                        AppLogger.printStackTrace(e);
+                        MainActivityPresenter.addMsg(true, "Exception when trying to read time point data from a database, time point was deleted");
+                        App.getDataBase().timePointDao().delete(tp);
+                        continue;
+                    }
+                    sb.append(formatter.format(time))
+                            .append(',');
+                    sb.append(formatter.format(bootTime))
+                            .append(',');
+                    sb.append(airMode)
+                            .append(',');
+                    sb.append(timeCh)
+                            .append(',');
+                    sb.append(locationFake)
+                            .append(',');
+                    sb.append(activeNetwork)
+                            .append(',');
+                    HashMap<String, Provider> providerHashMap = new HashMap<>();
+                    for (Provider provider : providersList) {
+                        providerHashMap.put(provider.name, provider);
+                    }
 
-                for (int i = 0; i < PROVIDER_NAME.length; i++) {
-                    Provider provider = providerHashMap.get(PROVIDER_NAME[i]);
-                    if (PROVIDER_NAME[i].equals("gps")) {
-                        if (provider == null) {
-                            gpsErrStr = EMPTY;
-                        } else {
-                            if (lastGpsTime == -1) {
-                                gpsErrStr = ZERO;
-                            } else if (provider.time - lastGpsTime < 1000) {
-                                gpsErrStr = ONE;
+                    for (int i = 0; i < PROVIDER_NAME.length; i++) {
+                        Provider provider = providerHashMap.get(PROVIDER_NAME[i]);
+                        if (PROVIDER_NAME[i].equals("gps")) {
+                            if (DataStorage.isGpsErrorCheckingEnabled()) {
+                                if (provider == null) {
+                                    gpsErrStr = EMPTY;
+                                } else {
+                                    if (lastGpsTime == -1) {
+                                        gpsErrStr = ZERO;
+                                    } else if (provider.time - lastGpsTime < 1000) {
+                                        gpsErrStr = ONE;
+                                    } else {
+                                        gpsErrStr = ZERO;
+                                    }
+                                    lastGpsTime = provider.time;
+                                }
                             } else {
-                                gpsErrStr = ZERO;
+                                gpsErrStr = DISABLED;
                             }
-                            lastGpsTime = provider.time;
+                        }
+                        if (!DataStorage.isCoordCheckingEnabled()) {
+                            sb.append(PROVIDER_NAME[i])
+                                    .append(',')
+                                    .append(DISABLED)
+                                    .append(',')
+                                    .append(DISABLED)
+                                    .append(',')
+                                    .append(DISABLED)
+                                    .append(',')
+                                    .append(DISABLED)
+                                    .append(',')
+                                    .append(DISABLED)
+                                    .append(',');
+                        } else {
+                            if (provider == null) {
+                                sb.append(PROVIDER_NAME[i])
+                                        .append(',')
+                                        .append(PROVIDER_NAME[i].equals("gps") ? gpsState : networkState)
+                                        .append(',')
+                                        .append(NULL)
+                                        .append(',')
+                                        .append(NULL)
+                                        .append(',')
+                                        .append(NULL)
+                                        .append(',')
+                                        .append(NULL)
+                                        .append(',');
+                            } else {
+                                sb.append(provider.name)
+                                        .append(',')
+                                        .append(PROVIDER_NAME[i].equals("gps") ? gpsState : networkState)
+                                        .append(',')
+                                        .append(formatter.format(provider.time))
+                                        .append(',')
+                                        .append(provider.longitude)
+                                        .append(',')
+                                        .append(provider.latitude)
+                                        .append(',')
+                                        .append(provider.accurate)
+                                        .append(',');
+                            }
                         }
                     }
-                    if (provider == null) {
-                        sb.append(PROVIDER_NAME[i])
-                                .append(',')
-                                .append(PROVIDER_NAME[i].equals("gps") ? gpsState : networkState)
-                                .append(',')
-                                .append(NULL)
-                                .append(',')
-                                .append(NULL)
-                                .append(',')
-                                .append(NULL)
-                                .append(',')
-                                .append(NULL)
-                                .append(',');
-                    } else {
-                        sb.append(provider.name)
-                                .append(',')
-                                .append(PROVIDER_NAME[i].equals("gps") ? gpsState : networkState)
-                                .append(',')
-                                .append(formatter.format(provider.time))
-                                .append(',')
-                                .append(provider.longitude)
-                                .append(',')
-                                .append(provider.latitude)
-                                .append(',')
-                                .append(provider.accurate)
-                                .append(',');
-                    }
+                    sb.append(satInfo)
+                            .append(',');
+                    sb.append(gpsErrStr)
+                            .append(',');
+                    sb.append(charging)
+                            .append(',');
+                    sb.append(battery)
+                            .append(',');
+                    sb.append(appVersion)
+                            .append(',');
+                    sb.append(memory)
+                            .append(',');
+                    sb.append(installApp)
+                            .append(',');
+                    sb.append(deniedPerms)
+                            .append(',');
+                    sb.append('\n');
+                    gpsErrStr = EMPTY;
+                    generatedData.objDeleteFromDb.add(tp);
+                    generatedData.objDeleteFromDb.addAll(providersList);
                 }
-                sb.append(satInfo)
-                        .append(',');
-                sb.append(gpsErrStr)
-                        .append(',');
-                sb.append(charging)
-                        .append(',');
-                sb.append(battery)
-                        .append(',');
-                sb.append(appVersion)
-                        .append(',');
-                sb.append(memory)
-                        .append(',');
-                sb.append(installApp)
-                        .append(',');
-                sb.append(deniedPerms)
-                        .append(',');
-                sb.append('\n');
-                gpsErrStr = EMPTY;
-                generatedData.objDeleteFromDb.add(tp);
-                generatedData.objDeleteFromDb.addAll(providersList);
+                generatedData.data = sb.toString();
             }
-            generatedData.data = sb.toString();
         }
         return generatedData;
     }

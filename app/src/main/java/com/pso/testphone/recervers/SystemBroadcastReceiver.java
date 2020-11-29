@@ -1,6 +1,5 @@
 package com.pso.testphone.recervers;
 
-import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -8,14 +7,12 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
-import android.util.Log;
 
 import androidx.core.content.ContextCompat;
 
 import com.pso.testphone.App;
 import com.pso.testphone.AppLogger;
 import com.pso.testphone.data.DataStorage;
-import com.pso.testphone.gui.MainActivity;
 import com.pso.testphone.services.MainService;
 
 import java.text.SimpleDateFormat;
@@ -37,7 +34,7 @@ public class SystemBroadcastReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
-        Log.e(" MainReceiver", "TestPhone : onReceive = action -" + action );
+        //Log.e(" MainReceiver", "TestPhone : onReceive = action -" + action );
         if (action != null) {
             if (action.equals(ACTION_BOOT_COMPLETED)) {
                 startDataCollectorService(context);
@@ -70,9 +67,9 @@ public class SystemBroadcastReceiver extends BroadcastReceiver {
     }
 
     public static void sendBroadCastToAssistant(Context context) {
-        Log.e(TAG, "sendBroadCast alarmIntent");
+        //Log.e(TAG, "sendBroadCast alarmIntent");
         Intent i = new Intent("com.pso.cht_phandroidservice.MainReceiver.ACTION");
-        i.putExtra(TIME_EXTRA, String.valueOf(DataStorage.getAssExchangeTime()));
+        i.putExtra(TIME_EXTRA, String.valueOf(DataStorage.getExchangeTime()));
         i.setComponent(new ComponentName(DataStorage.TP_ASSISTANT_PACKAGE, TP_ASSISTANT_PACKAGE_SERVICE_CLASS));
         context.sendBroadcast(i);
     }

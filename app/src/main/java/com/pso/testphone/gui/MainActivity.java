@@ -141,17 +141,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onStart() {
         super.onStart();
+        RemoteServerHelper.getINSTANCE().bindServerTaskListener(this);
     }
 
     @Override
     protected void onStop() {
+        RemoteServerHelper.getINSTANCE().unBindServerTaskListener(this);
         super.onStop();
     }
 
     @Override
     protected void onDestroy() {
         MainActivityPresenter.onViewDestroy();
-        RemoteServerHelper.getINSTANCE().unBindServerTaskListener(this);
         super.onDestroy();
     }
 
@@ -202,11 +203,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onTaskDone(String string) {
-        RemoteServerHelper.getINSTANCE().unBindServerTaskListener(this);
-        Intent intent = new Intent(App.getContext(), DialogActivity.class);
+        /*Intent intent = new Intent(App.getContext(), DialogActivity.class);
         intent.setAction(string);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
+        startActivity(intent);*/
     }
 
     @Override

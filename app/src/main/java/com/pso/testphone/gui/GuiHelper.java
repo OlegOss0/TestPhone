@@ -14,4 +14,15 @@ public class GuiHelper {
         intent.setFlags(fromActivity ? Intent.FLAG_ACTIVITY_REORDER_TO_FRONT : Intent.FLAG_ACTIVITY_NEW_TASK );
         App.getContext().startActivity(intent);
     }
+
+    public static void startDialogActivity(String task) {
+        if (!DialogActivity.isShow) {
+            App.getMainHandler().postDelayed(() -> {
+                Intent intent = new Intent(App.getContext(), DialogActivity.class);
+                intent.setAction(task);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                App.getContext().startActivity(intent);
+            }, 100);
+        }
+    }
 }

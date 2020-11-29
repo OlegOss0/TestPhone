@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.BatteryManager;
@@ -86,6 +87,7 @@ public class DeviceInfo {
                 String appName = applicationInfo.loadLabel(pm).toString();
                 if (appName.contains(DataStorage.APP_ASSISTANT_NAME)) {
                     tpAssistantInstall = true;
+                    DataStorage.TP_ASSISTANT_VER = getAppicationVersion(applicationInfo.packageName);
                 }
                 apps.add(applicationInfo.loadLabel(pm).toString());
             }
@@ -97,6 +99,18 @@ public class DeviceInfo {
             sb.append(".");
         }
         return sb.toString();
+    }
+
+    private static String getAppicationVersion(String packageName) {
+        PackageManager manager = App.getContext().getPackageManager();
+        String version = "";
+        try {
+            PackageInfo info = manager.getPackageInfo(packageName, 0);
+            version = info.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            // TODO Auto-generated catch block
+        }
+        return version;
     }
 
 

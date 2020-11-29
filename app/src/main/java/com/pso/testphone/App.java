@@ -67,12 +67,16 @@ public class App extends Application {
                     out.write(buffer, 0, len);
                 }
                 out.close();
-                MainActivityPresenter.addMsg(true, "Done.");
                 unpackFile.setReadable(true, false);
+                MainActivityPresenter.addMsg(true, "Done.");
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+    }
+    public static void deleteAssistantIntallFile(){
+        File unpackFile = new File(getContext().getFilesDir() + "/" + DataStorage.APP_ASSISTANT_FILE_NAME);
+        unpackFile.delete();
     }
 
     public static Context getContext(){

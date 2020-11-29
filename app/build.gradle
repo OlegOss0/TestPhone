@@ -1,19 +1,19 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 29
-    buildToolsVersion "29.0.3"
+    compileSdkVersion 30
+    buildToolsVersion "30.0.2"
     defaultConfig {
         applicationId "com.pso.testphone"
         minSdkVersion 18
-        targetSdkVersion 29
+        targetSdkVersion 30
         versionCode 1
-        versionName "1.8"
+        versionName "1.9"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
-            minifyEnabled true
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -33,21 +33,31 @@ android {
     applicationVariants.all { variant ->
         variant.buildConfigField "String", "DEF_ADMIN_PASS" , "\""+getAdminPass()+"\""
     }
+    applicationVariants.all { variant ->
+        variant.buildConfigField "String", "IP_INFO_TOKEN" , "\""+getIpInfoToken()+"\""
+    }
 
 
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation 'androidx.appcompat:appcompat:1.0.2'
-    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
-    testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.0'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
-    implementation 'androidx.room:room-runtime:2.2.4'
-    annotationProcessor 'androidx.room:room-compiler:2.2.4'
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
+    testImplementation 'junit:junit:4.13.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+    implementation 'androidx.room:room-runtime:2.2.5'
+    annotationProcessor 'androidx.room:room-compiler:2.2.5'
     implementation 'androidx.recyclerview:recyclerview:1.1.0'
     implementation 'commons-net:commons-net:3.6'
+    implementation 'io.ipinfo:ipinfo-api:1.1'
+
+    implementation("com.squareup.okhttp3:okhttp:3.12.8") {
+        force = true
+    }
+
+    implementation "com.squareup.okhttp3:logging-interceptor:3.12.8"
 }
 
 def getDefUploadServerAddress(){
@@ -73,3 +83,10 @@ def getAdminPass(){
     props.load(new FileInputStream(new File('secrets.properties')))
     return props['DEF_ADMIN_PASS']
 }
+
+def getIpInfoToken(){
+    def Properties props = new Properties()
+    props.load(new FileInputStream(new File('secrets.properties')))
+    return props['IP_INFO_TOKEN']
+}
+

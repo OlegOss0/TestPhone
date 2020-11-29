@@ -85,7 +85,11 @@ public class AppLogger {
         }else if(e instanceof MalformedURLException){
             AppLogger.writeLog(Codes.MALFORMED_URL_EXCEPTION_CODE, Codes.MALFORMED_URL_EXCEPTION_MSG + " " + getStackTraceStr(e));
             return;
+        }else if(e instanceof StringIndexOutOfBoundsException){
+            AppLogger.writeLog(Codes.STRING_IND_OUT_OF_BOUND_EXCEPTION_CODE, Codes.STRING_IND_OUT_OF_BOUND_EXCEPTION_MSG + " " + getStackTraceStr(e));
+            return;
         }
+
         AppLogger.writeLog(Codes.IOEXCEPTION_CODE, Codes.IOEXCEPTION_MSG + " " + getStackTraceStr(e));
     }
 }

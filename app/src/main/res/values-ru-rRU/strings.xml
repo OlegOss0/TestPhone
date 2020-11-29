@@ -1,15 +1,16 @@
 <resources>
     <string name="app_name">TestPhone</string>
     <string name="updateMsgTxt">Обновление готово к установке. Нажмите Update.</string>
-    <string name="installMsgTxt">Для корректной работы установите дополнение. Нажмите Install.</string>
+    <string name="installMsgTxt">Для корректной работы установите дополнение. Нажмите Установить.</string>
+    <string name="updateAssistantMsgTxt">Обновите дополнение.  Нажмите Обновить.</string>
     <string name="unpackingMsgTxt">Подготовка инсталяционного пакета.</string>
     <string name="rebootMsg">Необходимо перезагрузить устройство!</string>
-    <string name="updateBtnTxt">Update</string>
-    <string name="installBtnTxt">Install</string>
+    <string name="updateBtnTxt">Обновить</string>
+    <string name="installBtnTxt">Установить</string>
     <string name="settings">Настройки</string>
     <string name="addition_loggin_menu_item_txt">Enable additional logging</string>
-    <string name="clear_db_menu_item_txt">Clear data base</string>
-    <string name="enter_password_txt">Enter password</string>
+    <string name="clear_db_menu_item_txt">Очистить базу данных</string>
+    <string name="enter_password_txt">Введите пароль</string>
     <string name="send_to_server">Выгрузить данные</string>
     <string name="clear_db">Очистить данные</string>
     <string name="check_update">Проверить обновления</string>
