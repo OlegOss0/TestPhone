@@ -191,10 +191,10 @@ public class PreferenceManager {
     }
 
     protected long getExchangeTimePref() {
-        return sPref.getLong(ADDITIONAL_LOGGING_PREF, DEF_EXCHANGE_TIME);
+        return sPref.getLong(EXCHANGE_TIME_PREF, DEF_EXCHANGE_TIME);
     }
     protected void setExchangeTimePref(long time) {
-        editor.putLong(LAST_SHOW_REBOOT_MSG_TIME_PREF, time).apply();
+        editor.putLong(EXCHANGE_TIME_PREF, time).apply();
     }
 
 

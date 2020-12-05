@@ -12,6 +12,7 @@ import android.util.Log;
 
 import androidx.room.Room;
 
+import com.pso.testphone.data.Codes;
 import com.pso.testphone.data.DataStorage;
 import com.pso.testphone.data.DeviceInfo;
 import com.pso.testphone.db.AppDataBase;
@@ -52,7 +53,7 @@ public class App extends Application {
         createNotificationChannel();
     }
 
-    public static void unpackAssistant() {
+    public static boolean unpackAssistant() {
         AssetManager assetManager = getContext().getAssets();
         File unpackFile = new File(getContext().getFilesDir() + "/" + DataStorage.APP_ASSISTANT_FILE_NAME);
         if (!unpackFile.exists()) {
@@ -69,10 +70,13 @@ public class App extends Application {
                 out.close();
                 unpackFile.setReadable(true, false);
                 MainActivityPresenter.addMsg(true, "Done.");
+                return true;
             } catch (IOException e) {
-                e.printStackTrace();
+                AppLogger.writeLog(Codes.IOEXCEPTION_CODE, "UnpackAssistant exception");
+                AppLogger.writeLogEx(e);
             }
         }
+        return true;
     }
     public static void deleteAssistantIntallFile(){
         File unpackFile = new File(getContext().getFilesDir() + "/" + DataStorage.APP_ASSISTANT_FILE_NAME);

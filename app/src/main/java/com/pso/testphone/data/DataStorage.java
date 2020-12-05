@@ -4,6 +4,7 @@ import android.os.Build;
 
 import com.pso.testphone.BuildConfig;
 
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -21,6 +22,8 @@ public class DataStorage {
     public static final int APP_UPDATE_REQUEST = 0x0000112;
     public static final int APP_INSTALL_ASSISTANT_REQUEST = 0x0000113;
     public static final int REGUEST_CODE_GPS_ENABLE = 0x0000114;
+    public static AtomicLong lastShowAssistanrMsgTime = new AtomicLong(0);
+    public static final long SHOW_ASSISTANR_MSG_INT = 1000 * 60 * 3;
     private static AtomicLong writeInterval = new AtomicLong(PreferenceManager.getINSTANCE().getWriteIntervalPref());
 
     private static AtomicLong unloadDataFileInt = new AtomicLong(PreferenceManager.getINSTANCE().getUnloadDataFileIntPref());

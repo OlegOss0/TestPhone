@@ -10,7 +10,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -26,6 +25,7 @@ import java.io.File;
 import java.util.Objects;
 
 import static com.pso.testphone.data.DataStorage.APP_INSTALL_ASSISTANT_REQUEST;
+import static com.pso.testphone.data.DataStorage.APP_UPDATE_REQUEST;
 import static com.pso.testphone.interfaces.ServerTaskListener.NEED_ENABLED_ALL_LOCATION;
 import static com.pso.testphone.interfaces.ServerTaskListener.REBOOT_DEVICE;
 import static com.pso.testphone.interfaces.ServerTaskListener.UPDATE_APP;
@@ -36,6 +36,7 @@ public class DialogActivity extends AppCompatActivity {
     public static boolean isShow = false;
     Button button;
     TextView tv;
+    private int curRequestCode = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,30 +67,28 @@ public class DialogActivity extends AppCompatActivity {
                             apkUri = Uri.fromFile(installApk);
                         }
                         SystemBroadcastReceiver.createAlarm();
-                        installPackage(apkUri);
+                        installPackage(apkUri, APP_UPDATE_REQUEST);
                     }
                 });
                 break;
             case INSTALL_ASSISTANT:
             case UPDATE_ASSISTANT:
                 File installApk = new File(App.getContext().getFilesDir() + "/" + DataStorage.APP_ASSISTANT_FILE_NAME);
-                tv.setText(R.string.installMsgTxt);
                 button.setVisibility(View.VISIBLE);
                 if (action == INSTALL_ASSISTANT) {
+                    tv.setText(R.string.installMsgTxt);
                     button.setText(R.string.installBtnTxt);
                     if (!installApk.exists()) {
-                        tv.setText(R.string.unpackingMsgTxt);
                         button.setEnabled(false);
                         App.unpackAssistant();
-                        tv.setText(R.string.installMsgTxt);
                         button.setEnabled(true);
                     }
                 } else {
+                    tv.setText(R.string.updateAssistantMsgTxt);
                     button.setText(R.string.updateBtnTxt);
                     if (installApk.exists()) {
                         installApk.delete();
                     }
-                    tv.setText(R.string.unpackingMsgTxt);
                     button.setEnabled(false);
                     App.unpackAssistant();
                     if (installApk.exists()) {
@@ -97,6 +96,7 @@ public class DialogActivity extends AppCompatActivity {
                         button.setEnabled(true);
                     } else {
                         Toast.makeText(this, "Error unpack TPAssistant", Toast.LENGTH_LONG);
+                        finishAffinity();
                     }
                 }
                 button.setOnClickListener(view -> {
@@ -110,10 +110,13 @@ public class DialogActivity extends AppCompatActivity {
                             packageIri = Uri.fromFile(installApk);
                         }
                         if (packageIri != null) {
-                            installPackage(packageIri);
+                            installPackage(packageIri, APP_INSTALL_ASSISTANT_REQUEST);
                         } else {
-                            Toast.makeText(this, "Uri install packege = null", Toast.LENGTH_LONG);
+                            Toast.makeText(this, "Uri install package = null", Toast.LENGTH_LONG);
                         }
+                    }else{
+                        Toast.makeText(this, "Error unpacking the archive ", Toast.LENGTH_LONG);
+                        finishAffinity();
                     }
                 });
                 break;
@@ -153,7 +156,7 @@ public class DialogActivity extends AppCompatActivity {
     }
 
     @SuppressLint("InlinedApi")
-    private void installPackage(Uri uri) {
+    private void installPackage(Uri uri, int requestCode) {
         if (uri == null) {
             Toast.makeText(this, "Uri install packege = null", Toast.LENGTH_LONG);
             finishAffinity();
@@ -183,6 +186,7 @@ public class DialogActivity extends AppCompatActivity {
         } else if (Build.VERSION.SDK_INT < 24) {
             intent.setAction(Intent.ACTION_INSTALL_PACKAGE);
             intent.setData(uri);
+            intent.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, getApplicationContext().getApplicationInfo().packageName);
             intent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
             intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
         } else { // Android N
@@ -195,8 +199,9 @@ public class DialogActivity extends AppCompatActivity {
         }
 
         try {
-            startActivityForResult(intent, APP_INSTALL_ASSISTANT_REQUEST);
+            startActivityForResult(intent, requestCode);
         } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, "ActivityNotFoundException ", Toast.LENGTH_LONG);
             //Log.e(TAG, "ActivityNotFoundException", e);
             /*installer.sendBroadcastInstall(downloadUri, Installer.ACTION_INSTALL_INTERRUPTED,
                     "This Android rom does not support ACTION_INSTALL_PACKAGE!");*/
@@ -231,7 +236,7 @@ public class DialogActivity extends AppCompatActivity {
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
-            case DataStorage.APP_UPDATE_REQUEST:
+            case APP_UPDATE_REQUEST:
                 if (resultCode == RESULT_OK) {
                     //Intent stopService = new Intent(getApplicationContext(), MainService.class);
                     //stopService(stopService);
