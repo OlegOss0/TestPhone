@@ -39,6 +39,7 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -62,6 +63,10 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
+import static com.pso.testphone.data.Codes.IOEXCEPTION_CODE;
+import static com.pso.testphone.data.Codes.IOEXCEPTION_MSG;
+import static com.pso.testphone.data.Codes.MALFORMED_URL_EXCEPTION_CODE;
+import static com.pso.testphone.data.Codes.MALFORMED_URL_EXCEPTION_MSG;
 import static com.pso.testphone.data.Codes.NETWORK_NOT_AVAILABLE_MSG;
 import static com.pso.testphone.data.Codes.VALUES_NOT_SET;
 import static com.pso.testphone.data.Codes.VALUES_SET;
@@ -109,6 +114,7 @@ public class RemoteServerHelper {
 
     private static final String ON = "on";
     private static final String OFF = "off";
+
 
     enum States {IDLE, BUSY}
 
@@ -213,7 +219,7 @@ public class RemoteServerHelper {
         ftpClient.makeDirectory(DeviceInfo.getIMEI());
     }
 
-    public enum TaskType {Idle, SendData, SendLogs, getUpdate, getAppNewVer, getAsiistantNewVer}
+    public enum TaskType {Idle, SendData, SendLogs, getUpdate, getAppNewVer, getAssistantNewVer}
 
     public void completeTask(TaskType taskType) {
         if (currTask.get() == taskType)
@@ -226,29 +232,31 @@ public class RemoteServerHelper {
         }
         switch (taskType) {
             case SendData:
-                App.getBgHandler().post(() -> {
-                    currTask.set(TaskType.SendData);
-                    sendFile();
-                });
+                currTask.set(TaskType.SendData);
+                App.getBgHandler().post(this::sendFile);
                 break;
             case SendLogs:
-                App.getBgHandler().post(() -> {
-                    currTask.set(TaskType.SendLogs);
-                    sendLogsFile();
-                });
+                currTask.set(TaskType.SendLogs);
+                App.getBgHandler().post(this::sendLogsFile);
                 break;
             case getUpdate:
-                App.getBgHandler().post(() -> {
-                    currTask.set(TaskType.getUpdate);
-                    downloadPropertiesFile();
-                });
+                currTask.set(TaskType.getUpdate);
+                App.getBgHandler().post(this::downloadPropertiesFile);
                 break;
             case getAppNewVer:
+                currTask.set(TaskType.getAppNewVer);
                 App.getBgHandler().post(() -> {
-                    currTask.set(TaskType.getAppNewVer);
-                    downloadNewVersionApp(mNewAppVersion);
-                    mNewAppVersion = "";
+                    String fileName = DataStorage.APP_NAME + DataStorage.getAppAvailableVersion() + ".apk";
+                    downloadFile(fileName);
                 });
+                break;
+            case getAssistantNewVer:
+                currTask.set(TaskType.getAssistantNewVer);
+                App.getBgHandler().post(() -> {
+                    String fileName = DataStorage.APK_ASSISTANT_FILE_NAME;
+                    downloadFile(fileName);
+                });
+                break;
         }
     }
 
@@ -260,6 +268,7 @@ public class RemoteServerHelper {
 
     private void sendLogsFile() {
         synchronized (lock) {
+            currTask.set(TaskType.SendLogs);
             mState.set(States.BUSY);
             final String uploadServer = DataStorage.getUploadServerAddress();
             boolean done = false;
@@ -275,114 +284,111 @@ public class RemoteServerHelper {
                 } catch (IOException e) {
                     AppLogger.writeLogEx(e);
                     disconnectServer(ftpClient);
-                    removeTaskAndGoToIdle(TaskType.SendLogs);
+                    removeTaskAndGoToIdle(currTask.get());
                     return;
                 }
                 while (hasDateData && DataStorage.networkAvailable.get()) {
                     DBHelper.GeneretedData gData = DBHelper.getInstance().getLogsData();
-                    if (gData != null && DataStorage.networkAvailable.get()) {
-                        if (gData.data != null && !gData.data.isEmpty()) {
-                            InputStream in = null;
-                            try {
-                                MainActivityPresenter.addMsg(true, "Sending...");
-                                in = new ByteArrayInputStream(gData.data.getBytes("windows-1251"));
-                                AppLogger.writeLog(Codes.START_UNLOAD_FILE_CODE, Codes.START_UNLOAD_FILE_MSG + " name = " + gData.fileName +
-                                        " size = " + DeviceInfo.bytesToHuman(gData.data.getBytes().length));
-                                done = ftpClient.appendFile(gData.fileName, in);
-                                in.close();
-                            } catch (UnsupportedEncodingException e) {
-                                AppLogger.writeLogEx(e);
-                                done = false;
-                            } catch (IOException e) {
-                                AppLogger.writeLogEx(e);
-                                done = false;
+                    if (gData != null && gData.data != null && !gData.data.isEmpty()) {
+                        InputStream in = null;
+                        try {
+                            MainActivityPresenter.addMsg(true, "Sending logs");
+                            AppLogger.writeLog(Codes.START_UNLOAD_FILE_CODE, Codes.START_UNLOAD_FILE_MSG + " name = " + gData.fileName);
+                            int bytes = 0;
+                            for (DBHelper.Data d : gData.data) {
+                                in = new ByteArrayInputStream(d.dataStr.getBytes("windows-1251"));
+                                bytes = bytes + d.dataStr.getBytes().length;
+                                if (ftpClient.appendFile(gData.fileName, in)) {
+                                    gData.objDeleteFromDb.addAll(d.objs);
+                                }
                             }
+                            in.close();
+                            AppLogger.writeLog(Codes.UNLOAD_FILE_FINISH_CODE, Codes.UNLOAD_FILE_FINISH_MSG + " name = " + gData.fileName +
+                                    " size = " + DeviceInfo.bytesToHuman(bytes));
+                            MainActivityPresenter.addMsg(true, "Send logs file " + gData.fileName + " done!");
                             hasDateData = gData.hasOtherDayData;
-                            if (done) {
-                                DBHelper.deleteSendingDataFromDb(gData.objDeleteFromDb);
-                                AppLogger.writeLog(Codes.UNLOAD_FILE_FINISH_CODE, Codes.UNLOAD_FILE_FINISH_MSG);
-                            }
-                        } else {
-                            AppLogger.writeLog(Codes.NO_DATA_CODE, Codes.NO_DATA_MSG);
-                            MainActivityPresenter.addMsg(true, Codes.NO_DATA_MSG);
+                        } catch (UnsupportedEncodingException e) {
+                            AppLogger.writeLogEx(e);
+                            hasDateData = false;
+                        } catch (IOException e) {
+                            AppLogger.writeLogEx(e);
                             hasDateData = false;
                         }
+                        DBHelper.deleteSendingDataFromDb(gData.objDeleteFromDb);
                     } else {
+                        AppLogger.writeLog(Codes.NO_DATA_CODE, Codes.NO_DATA_MSG);
+                        MainActivityPresenter.addMsg(true, Codes.NO_DATA_MSG);
                         hasDateData = false;
                     }
                 }
                 disconnectServer(ftpClient);
-            }
-            if (done) {
-                //MainActivityPresenter.addMsg(true, "Upload done!");
                 DataStorage.setLastUnloadLogsTime(System.currentTimeMillis());
-                MainActivityPresenter.addMsg(true, "Send logs file done!");
             }
-            removeTaskAndGoToIdle(TaskType.SendLogs);
+            removeTaskAndGoToIdle(currTask.get());
         }
     }
 
     private void sendFile() {
         synchronized (lock) {
+            currTask.set(TaskType.SendData);
             mState.set(States.BUSY);
             final String uploadServer = DataStorage.getUploadServerAddress();
-            boolean done = false;
             boolean hasDateData = true;
             FTPClient ftpClient = new FTPClient();
             if (connectionToUploadServer(ftpClient, uploadServer)) {
                 try {
-                    done = ftpClient.changeWorkingDirectory(folder);
+                    ftpClient.changeWorkingDirectory(folder);
                 } catch (IOException e) {
                     AppLogger.writeLogEx(e);
                     disconnectServer(ftpClient);
-                    removeTaskAndGoToIdle(TaskType.SendData);
+                    removeTaskAndGoToIdle(currTask.get());
                     return;
                 }
                 while (hasDateData && DataStorage.networkAvailable.get()) {
                     DBHelper.GeneretedData gData = DBHelper.getInstance().generateDataString();
-                    if (gData != null && DataStorage.networkAvailable.get()) {
-                        if (gData.data != null && !gData.data.isEmpty()) {
-                            InputStream in = null;
-                            MainActivityPresenter.addMsg(true, "Sending...");
-                            try {
-                                if (!fileExists(ftpClient, gData.fileName)) {
-                                    gData.data = DBHelper.TelemetryFileHeader
-                                            + ",Device info: " + DeviceInfo.getFull() + '\n' + gData.data;
+                    if (gData != null && gData.data != null && !gData.data.isEmpty()) {
+                        InputStream in = null;
+                        int bytes = 0;
+                        MainActivityPresenter.addMsg(true, "Sending data file");
+                        try {
+                            AppLogger.writeLog(Codes.START_UNLOAD_FILE_CODE, Codes.START_UNLOAD_FILE_MSG + " name = " + gData.fileName);
+                            String headerStr = "";
+                            if (!fileExists(ftpClient, gData.fileName)) {
+                                headerStr = DBHelper.TelemetryFileHeader + ",Device info: " + DeviceInfo.getFull() + '\n';
+                                in = new ByteArrayInputStream(headerStr.getBytes("windows-1251"));
+                                ftpClient.appendFile(gData.fileName, in);
+                                bytes = bytes + headerStr.getBytes().length;
+                            }
+                            for (DBHelper.Data d : gData.data) {
+                                in = new ByteArrayInputStream(d.dataStr.getBytes("windows-1251"));
+                                if (ftpClient.appendFile(gData.fileName, in)) {
+                                    bytes = bytes + d.dataStr.getBytes().length;
+                                    gData.objDeleteFromDb.addAll(d.objs);
                                 }
-                                in = new ByteArrayInputStream(gData.data.getBytes("windows-1251"));
-
-                                AppLogger.writeLog(Codes.START_UNLOAD_FILE_CODE, Codes.START_UNLOAD_FILE_MSG + " name = " + gData.fileName +
-                                        " size = " + DeviceInfo.bytesToHuman(gData.data.getBytes().length));
-                                done = ftpClient.appendFile(gData.fileName, in);
-                                in.close();
-                                AppLogger.writeLog(Codes.UNLOAD_FILE_FINISH_CODE, Codes.UNLOAD_FILE_FINISH_MSG);
-                            } catch (UnsupportedEncodingException e) {
-                                AppLogger.writeLogEx(e);
-                                done = false;
-                            } catch (IOException e) {
-                                AppLogger.writeLogEx(e);
-                                done = false;
                             }
+                            in.close();
+                            AppLogger.writeLog(Codes.UNLOAD_FILE_FINISH_CODE, Codes.UNLOAD_FILE_FINISH_MSG+ " name = " + gData.fileName +
+                                    " size = " + DeviceInfo.bytesToHuman(bytes));
+                            MainActivityPresenter.addMsg(true, "Send data file " + gData.fileName + " done!");
                             hasDateData = gData.hasOtherDayData;
-                            if (done) {
-                                DBHelper.deleteSendingDataFromDb(gData.objDeleteFromDb);
-                            }
-                        } else {
-                            AppLogger.writeLog(Codes.NO_DATA_CODE, Codes.NO_DATA_MSG);
-                            MainActivityPresenter.addMsg(true, Codes.NO_DATA_MSG);
+                        } catch (UnsupportedEncodingException e) {
+                            AppLogger.writeLogEx(e);
                             hasDateData = false;
+                        } catch (IOException e) {
+                            hasDateData = false;
+                            AppLogger.writeLogEx(e);
                         }
+                        DBHelper.deleteSendingDataFromDb(gData.objDeleteFromDb);
                     } else {
+                        AppLogger.writeLog(Codes.NO_DATA_CODE, Codes.NO_DATA_MSG);
+                        MainActivityPresenter.addMsg(true, Codes.NO_DATA_MSG);
                         hasDateData = false;
                     }
                 }
                 disconnectServer(ftpClient);
-            }
-            if (done) {
-                MainActivityPresenter.addMsg(true, "Send data file done!");
                 DataStorage.setLastUnloadDataFileTime(System.currentTimeMillis());
             }
-            removeTaskAndGoToIdle(TaskType.SendData);
+            removeTaskAndGoToIdle(currTask.get());
         }
     }
 
@@ -430,6 +436,7 @@ public class RemoteServerHelper {
 
     private void downloadPropertiesFile() {
         synchronized (lock) {
+            currTask.set(TaskType.getUpdate);
             mState.set(States.BUSY);
             BufferedReader reader;
             StringBuilder sb;
@@ -472,7 +479,7 @@ public class RemoteServerHelper {
                 AppLogger.writeLog(Codes.NO_DATA_CODE, Codes.NO_DATA_MSG);
                 MainActivityPresenter.addMsg(true, Codes.NO_DATA_MSG);
             }
-            removeTaskAndGoToIdle(TaskType.getUpdate);
+            removeTaskAndGoToIdle(currTask.get());
         }
     }
 
@@ -480,6 +487,7 @@ public class RemoteServerHelper {
 
     private void parseAndSetProperies(String finalResultStr) {
         String version = "";
+        String assitantVersion = "";
         String updateInterval = "";
         String unloadDataFileInt = "";
         String writeInterval = "";
@@ -494,6 +502,8 @@ public class RemoteServerHelper {
             JSONObject jsonObject = new JSONObject(finalResultStr);
             String VERSION_STR = "version";
             version = jsonObject.getString(VERSION_STR);
+            String ASSISTANT_VERSION_STR = "assistant_version";
+            assitantVersion = jsonObject.getString(ASSISTANT_VERSION_STR);
             String UPDATE_STR = "ch_update_int";
             updateInterval = jsonObject.getString(UPDATE_STR);
             String UNLOAD_STR = "unload_int";
@@ -537,12 +547,14 @@ public class RemoteServerHelper {
             e.printStackTrace();
             return;
         }
-        if (needUpdate(version)) {
+        setValue(ValueType.APP_AVAILABLE_VERSION, version);
+        setValue(ValueType.APP_ASSISTANT_AVAILABLE_VERSION, assitantVersion);
+        /*if (needUpdate(version)) {
             taskQueue.get().addFirst(TaskType.getAppNewVer);
             mNewAppVersion = version;
         } else {
             removeLastUpdateFiles();
-        }
+        }*/
         if (BuildConfig.DEBUG) {
             unloadDataFileInt = "2 m";
             updateInterval = "3 m";
@@ -650,76 +662,103 @@ public class RemoteServerHelper {
         }, REMOVED_TASK_TIME_OUT);
     }
 
-
     @SuppressLint("SetWorldReadable")
-    private void downloadNewVersionApp(final String version) {
+    private void downloadFile(final String remoteFileName) {
         synchronized (lock) {
             mState.set(States.BUSY);
+            MainActivityPresenter.addMsg(true, "Start download file " + remoteFileName);
             boolean result = false;
-            byte[] buffer = new byte[4096];
-            String remoteFile = DataStorage.APP_NAME + version + ".apk";
-            HttpURLConnection urlConnection = null;
-            String urlStr = SERVER_UPDATE_ADRESS + remoteFile;
-            File downloadFile = new File(App.getContext().getFilesDir() + "/" + remoteFile);
-            if (downloadFile.exists()) {
-                MainActivityPresenter.addMsg(true, "Update is ready");
-                result = true;
-            } else {
-                MainActivityPresenter.addMsg(true, "Download update");
-                try {
-                    downloadFile.createNewFile();
-                } catch (IOException e) {
-                    AppLogger.printStackTrace(e);
-                }
-                URL url;
-                InputStream in = null;
-                OutputStream out = null;
-                try {
-                    url = new URL(urlStr);
-                    urlConnection = (HttpURLConnection) url.openConnection();
-                    urlConnection.setConnectTimeout(CONNECTION_TIMEOUT);
-                    in = new BufferedInputStream(urlConnection.getInputStream());
-                    out = new BufferedOutputStream(new FileOutputStream(downloadFile));
-                    int len;
-                    while ((len = in.read(buffer)) != -1) {
-                        AppLogger.i(TAG, "Download " + len + " bytes");
-                        MainActivityPresenter.addMsg(false, ".");
-                        out.write(buffer, 0, len);
-                    }
-                    out.close();
-                    MainActivityPresenter.addMsg(true, "Done.");
-                    result = downloadFile.setReadable(true, false);
-                } catch (MalformedURLException e) {
-                    AppLogger.writeLogEx(e);
-                } catch (IOException e) {
-                    AppLogger.writeLogEx(e);
-                } finally {
-                    if (urlConnection != null)
-                        urlConnection.disconnect();
-                    if (in != null) {
-                        try {
-                            in.close();
-                        } catch (IOException e) {
-                            AppLogger.writeLogEx(e);
-                        }
-                    }
-                    if (out != null) {
-                        try {
-                            out.close();
-                        } catch (IOException e) {
-                            AppLogger.writeLogEx(e);
-                        }
-                    }
-                }
+            byte[] buffer = new byte[8192];
+            File lFileName = null;
+            if (remoteFileName.contains(DataStorage.TP_ASSISTANT)) {
+                lFileName = DataStorage.getAssistantUpdateFile();
+            } else if (remoteFileName.contains(DataStorage.APP_NAME)) {
+                lFileName = DataStorage.getAppUpdateFile();
             }
+            String urlStr = SERVER_UPDATE_ADRESS + remoteFileName;
+            try {
+                lFileName.createNewFile();
+            } catch (IOException e) {
+                AppLogger.writeLog(IOEXCEPTION_CODE, IOEXCEPTION_MSG);
+                AppLogger.writeLogEx(e);
+                delayRemoveTaskAndGoToIdle(currTask.get());
+                return;
+            }
+            URL url;
+            InputStream in = null;
+            OutputStream out = null;
+            HttpURLConnection urlConnection = null;
+            try {
+                url = new URL(urlStr);
+            } catch (MalformedURLException e) {
+                AppLogger.writeLog(MALFORMED_URL_EXCEPTION_CODE, MALFORMED_URL_EXCEPTION_MSG);
+                AppLogger.writeLogEx(e);
+                lFileName.delete();
+                delayRemoveTaskAndGoToIdle(currTask.get());
+                return;
+            }
+            try {
+                urlConnection = (HttpURLConnection) url.openConnection();
+            } catch (IOException e) {
+                AppLogger.writeLog(IOEXCEPTION_CODE, IOEXCEPTION_MSG);
+                AppLogger.writeLogEx(e);
+                lFileName.delete();
+                delayRemoveTaskAndGoToIdle(currTask.get());
+                return;
+            }
+            urlConnection.setConnectTimeout(CONNECTION_TIMEOUT);
+            try {
+                in = new BufferedInputStream(urlConnection.getInputStream());
+            } catch (IOException e) {
+                AppLogger.writeLog(IOEXCEPTION_CODE, IOEXCEPTION_MSG);
+                AppLogger.writeLogEx(e);
+                lFileName.delete();
+                delayRemoveTaskAndGoToIdle(currTask.get());
+                return;
+            }
+            try {
+                out = new BufferedOutputStream(new FileOutputStream(lFileName));
+            } catch (FileNotFoundException e) {
+                lFileName.delete();
+                AppLogger.writeLogEx(e);
+                delayRemoveTaskAndGoToIdle(currTask.get());
+                return;
+            }
+
+            try {
+                int len;
+                while ((len = in.read(buffer)) != -1) {
+                    AppLogger.i(TAG, "Download " + len + " bytes");
+                    MainActivityPresenter.addMsg(false, ".");
+                    out.write(buffer, 0, len);
+                }
+                out.close();
+            } catch (IOException e) {
+                AppLogger.writeLog(IOEXCEPTION_CODE, IOEXCEPTION_MSG);
+                AppLogger.writeLogEx(e);
+                lFileName.delete();
+                delayRemoveTaskAndGoToIdle(currTask.get());
+                return;
+
+            }
+            MainActivityPresenter.addMsg(true, "Done.");
+            result = lFileName.setReadable(true, false);
             if (result) {
-                DataStorage.setUpdateFileName(remoteFile);
-                App.getMainHandler().postDelayed(() -> {
-                    GuiHelper.startDialogActivity(ServerTaskListener.UPDATE_APP);
-                }, 500);
+                if (remoteFileName.contains(DataStorage.TP_ASSISTANT)) {
+                    App.getMainHandler().post(() -> {
+                        GuiHelper.startDialogActivity(ServerTaskListener.UPDATE_ASSISTANT);
+                    });
+                } else if (remoteFileName.contains(DataStorage.APP_NAME)) {
+                    App.getMainHandler().post(() -> {
+                        GuiHelper.startDialogActivity(ServerTaskListener.UPDATE_APP);
+                    });
+                }
+                removeTaskAndGoToIdle(currTask.get());
+            } else {
+                lFileName.delete();
+                delayRemoveTaskAndGoToIdle(currTask.get());
             }
         }
-        delayRemoveTaskAndGoToIdle(TaskType.getAppNewVer);
     }
 
     private boolean strToBool(String value) throws IllegalAccessException {
@@ -730,7 +769,7 @@ public class RemoteServerHelper {
         }
     }
 
-    private enum ValueType {WRITE_INT, UNLOAD_DATA_FILE_INT, UPDATE_INT, SHOW_REBOOT_MSG_TIME, UPLOAD_SERVER_ADDRESS, ADMIN_PASS, UNLOAD_LOG_INT, EXCHANGE_INT}
+    private enum ValueType {APP_AVAILABLE_VERSION, APP_ASSISTANT_AVAILABLE_VERSION, WRITE_INT, UNLOAD_DATA_FILE_INT, UPDATE_INT, SHOW_REBOOT_MSG_TIME, UPLOAD_SERVER_ADDRESS, ADMIN_PASS, UNLOAD_LOG_INT, EXCHANGE_INT}
 
     private boolean setValue(ValueType type, String value) {
         switch (type) {
@@ -738,6 +777,12 @@ public class RemoteServerHelper {
                 return DataStorage.setUploadServerAddress(value);
             case ADMIN_PASS:
                 return DataStorage.setAdminPassword(value);
+            case APP_AVAILABLE_VERSION:
+                DataStorage.setAppAvailableVersion(value);
+                break;
+            case APP_ASSISTANT_AVAILABLE_VERSION:
+                DataStorage.setAssistantAvailableVersion(value);
+                break;
             case WRITE_INT:
             case UNLOAD_DATA_FILE_INT:
             case UPDATE_INT:
@@ -752,7 +797,7 @@ public class RemoteServerHelper {
     private long convertPropValueToLong(String value) {
         long newInterval = -1;
         String regex = "\\d+";
-        if(value.matches(regex)){
+        if (value.matches(regex)) {
             return Long.parseLong(value);
         }
         try {

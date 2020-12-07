@@ -169,14 +169,14 @@ public class PreferenceManager {
         editor.putString(ADMIN_PASSWORD_PREF, pass).apply();
     }
 
-    public boolean needUpdateTpAssistant() {
+    /*public boolean needUpdateTpAssistant() {
         if(!DataStorage.TP_ASSISTANT_VER.isEmpty()){
             if(Double.parseDouble(DataStorage.TP_ASSISTANT_VER) < Double.parseDouble("1.2")){
                 return true;
             }
         }
         return sPref.getBoolean(NEED_UPDATE_ASSISTANT_PREF, false);
-    }
+    }*/
 
     public void setNoNeedUpdateTpAssistant() {
         editor.putBoolean(NEED_UPDATE_ASSISTANT_PREF, false).apply();

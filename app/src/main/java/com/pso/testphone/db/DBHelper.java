@@ -14,7 +14,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+
+import okhttp3.internal.http.HttpHeaders;
 
 public class DBHelper {
 
@@ -47,12 +50,24 @@ public class DBHelper {
         TelemetryFileHeader = initTelemetryFileHeader();
     }
 
+    public class Data{
+        public final String dataStr;
+        public ArrayList<Object> objs = new ArrayList<>();
+
+        Data(String dataStr, Object obj){
+            this.dataStr = dataStr;
+            this.objs.add(obj);
+        }
+        Data(String dataStr){
+            this.dataStr = dataStr;
+        }
+    }
 
     public class GeneretedData {
-        public String data;
+        public LinkedList<Data> data = new LinkedList<>();
         public String fileName;
         public boolean hasOtherDayData;
-        public ArrayList<Object> objDeleteFromDb;
+        public ArrayList<Object> objDeleteFromDb = new ArrayList<>();
     }
 
 
@@ -82,10 +97,9 @@ public class DBHelper {
             MainActivityPresenter.addMsg(true, "Exception when trying to read data from a database");
             return null;
         }
-        generatedData.objDeleteFromDb = new ArrayList<>();
-        StringBuilder sb = new StringBuilder();
         if (myLogs != null && !myLogs.isEmpty()) {
             for (MyLog log : myLogs) {
+                StringBuilder sb = new StringBuilder();
                 final long time = log.time;
                 if (tmpDay == null) {
                     tmpDay = Calendar.getInstance();
@@ -93,7 +107,6 @@ public class DBHelper {
                     generatedData.fileName = getFileName(time, true);
                 } else if (itNextDay(tmpDay, time)) {
                     generatedData.hasOtherDayData = true;
-                    generatedData.data = sb.toString();
                     return generatedData;
                 }
                 final String code = log.code;
@@ -105,10 +118,8 @@ public class DBHelper {
                         .append(',');
                 sb.append(msg);
                 sb.append('\n');
-
-                generatedData.objDeleteFromDb.add(log);
+                generatedData.data.add(new Data(sb.toString(), log));
             }
-            generatedData.data = sb.toString();
         }
         return generatedData;
     }
@@ -129,10 +140,9 @@ public class DBHelper {
             MainActivityPresenter.addMsg(true, "Exception when trying to read data from a database");
             return null;
         }
-        generatedData.objDeleteFromDb = new ArrayList<>();
-        StringBuilder sb = new StringBuilder();
         if (timePointList != null) {
             for (TimePoint tp : timePointList) {
+                StringBuilder sb = new StringBuilder();
                 final long time = tp.time;
                 if (tmpDay == null) {
                     tmpDay = Calendar.getInstance();
@@ -140,7 +150,6 @@ public class DBHelper {
                     generatedData.fileName = getFileName(time, false);
                 } else if (itNextDay(tmpDay, time)) {
                     generatedData.hasOtherDayData = true;
-                    generatedData.data = sb.toString();
                     return generatedData;
                 }
                 final String airMode = DataStorage.isAirModeCheckingEnabled() ? (tp.airMode == 1 ? ON : OFF) : DISABLED;
@@ -266,10 +275,11 @@ public class DBHelper {
                             .append(',');
                     sb.append('\n');
                     gpsErrStr = EMPTY;
-                    generatedData.objDeleteFromDb.add(tp);
-                    generatedData.objDeleteFromDb.addAll(providersList);
                 }
-                generatedData.data = sb.toString();
+                Data d = new Data(sb.toString());
+                d.objs.add(tp);
+                d.objs.addAll(providersList);
+                generatedData.data.add(d);
             }
         }
         return generatedData;

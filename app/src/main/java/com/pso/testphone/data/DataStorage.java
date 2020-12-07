@@ -2,10 +2,15 @@ package com.pso.testphone.data;
 
 import android.os.Build;
 
+import com.pso.testphone.App;
+import com.pso.testphone.AppLogger;
 import com.pso.testphone.BuildConfig;
+import com.pso.testphone.gui.MainActivityPresenter;
 
+import java.io.File;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -13,17 +18,24 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class DataStorage {
     public static final String APP_NAME = "test_phone";
-    public static final String APP_ASSISTANT_FILE_NAME = "tp_assistant.apk";
+    public static final String TP_ASSISTANT = "tp_assistant";
+    public static final String APK_ASSISTANT_FILE_NAME = "tp_assistant.apk";
+    public static final String APK_APP_FILE_NAME = "test_phone.apk";
     public static final String APP_ASSISTANT_NAME = "TPAssistant";
+    public static final String APK = ".apk";
     public static final String TP_ASSISTANT_PACKAGE = "com.pso.tpassistant";
     public static final String TP_ASSISTANT_PACKAGE_SERVICE_CLASS = "com.pso.tpassistant.MainReceiver";
-    public static String TP_ASSISTANT_VER = "";
+    public final static String APP_STORAGE_FOLDER = "app";
+    public final static String ASSISTANT_STORAGE_FOLDER = "assistant";
 
     public static final int APP_UPDATE_REQUEST = 0x0000112;
     public static final int APP_INSTALL_ASSISTANT_REQUEST = 0x0000113;
+    public static final int APP_UPDATE_ASSISTANT_REQUEST = 0x0000114;
     public static final int REGUEST_CODE_GPS_ENABLE = 0x0000114;
     public static AtomicLong lastShowAssistanrMsgTime = new AtomicLong(0);
-    public static final long SHOW_ASSISTANR_MSG_INT = 1000 * 60 * 3;
+    public static AtomicLong lastShowAppUpdateMsgTime = new AtomicLong(0);
+
+    public static final long SHOW_ASSISTANR_MSG_INT = 30000;
     private static AtomicLong writeInterval = new AtomicLong(PreferenceManager.getINSTANCE().getWriteIntervalPref());
 
     private static AtomicLong unloadDataFileInt = new AtomicLong(PreferenceManager.getINSTANCE().getUnloadDataFileIntPref());
@@ -58,13 +70,13 @@ public class DataStorage {
         PreferenceManager.getINSTANCE().setAdditionalLoggingPref(enable);
     }
 
-    public static boolean needUpdateTpAssistant(){
+   /* public static boolean needUpdateTpAssistant(){
         return PreferenceManager.getINSTANCE().needUpdateTpAssistant();
     }
 
     public static void noNeedUpdateTpAssistant(){
         PreferenceManager.getINSTANCE().setNoNeedUpdateTpAssistant();
-    }
+    }*/
 
     public static long getLastTimeShowRebootMsg(){
         return lastTimeShowRebootMsg.get();
@@ -343,5 +355,54 @@ public class DataStorage {
     }
     public static boolean isNetworkCheckingEnabled(){
         return networkChecking.get();
+    }
+
+    private static AtomicReference<String> appAvailableVersion = new AtomicReference<>("");
+    public static void setAppAvailableVersion(String value) {
+        appAvailableVersion.set(value);
+    }
+    public static String getAppAvailableVersion(){
+        return appAvailableVersion.get();
+    }
+
+    private static AtomicReference<String> appAssistantAvailableVersion = new AtomicReference<>("");
+    public static void setAssistantAvailableVersion(String value) {
+        appAssistantAvailableVersion.set(value);
+    }
+    public static String getAppAssistantAvailableVersion(){
+        return appAssistantAvailableVersion.get();
+    }
+
+    private static AtomicReference<String> assistantCurVersion = new AtomicReference<>("");
+    public static String getAssistantCurVersion() {
+        return assistantCurVersion.get();
+    }
+    public static void setAssistantCurVersion(String version){
+        assistantCurVersion.set(version);
+    }
+
+    public static boolean needUpdate(String curVersion, String available) {
+        boolean newVersionready;
+        Double curVersionDouble = Double.parseDouble(curVersion);
+        if (available.isEmpty()) {
+            MainActivityPresenter.addMsg(true, "Failed read new version app");
+            return false;
+        }
+        Double availableVersionDouble = Double.parseDouble(available);
+        newVersionready = availableVersionDouble > curVersionDouble;
+        /*if (newVersionready) {
+            MainActivityPresenter.addMsg(true, "App need an update");
+        } else {
+            MainActivityPresenter.addMsg(true, "App version current");
+        }*/
+        return newVersionready;
+    }
+
+    public static File getAppUpdateFile(){
+        return new File(App.getContext().getFilesDir() + "/" + DataStorage.APP_STORAGE_FOLDER + "/" + APK_APP_FILE_NAME);
+    }
+
+    public static File getAssistantUpdateFile(){
+        return new File(App.getContext().getFilesDir() + "/" + DataStorage.ASSISTANT_STORAGE_FOLDER + "/" + APK_ASSISTANT_FILE_NAME);
     }
 }

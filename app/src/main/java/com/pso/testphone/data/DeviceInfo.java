@@ -76,23 +76,25 @@ public class DeviceInfo {
     }
 
     public static String getInstallApplications(Context context) {
-        boolean tpAssistantInstall = false;
         final PackageManager pm = context.getPackageManager();
         List<ApplicationInfo> allApps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
         ArrayList<String> apps = new ArrayList<>();
+        boolean assistantInstall = false;
+        String assistantCurVersion = "";
 
         StringBuilder sb = new StringBuilder();
         for (ApplicationInfo applicationInfo : allApps) {
             if ((applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
                 String appName = applicationInfo.loadLabel(pm).toString();
                 if (appName.contains(DataStorage.APP_ASSISTANT_NAME)) {
-                    tpAssistantInstall = true;
-                    DataStorage.TP_ASSISTANT_VER = getAppicationVersion(applicationInfo.packageName);
+                    assistantInstall = true;
+                    assistantCurVersion = getAppicationVersion(applicationInfo.packageName);
                 }
                 apps.add(applicationInfo.loadLabel(pm).toString());
             }
         }
-        DataStorage.setAssistantInstall(tpAssistantInstall);
+        DataStorage.setAssistantInstall(assistantInstall);
+        DataStorage.setAssistantCurVersion(assistantCurVersion);
         sb.append("Total " + apps.size() + ".");
         for (String app : apps) {
             sb.append(app);

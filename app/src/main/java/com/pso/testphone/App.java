@@ -8,7 +8,6 @@ import android.content.res.AssetManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.util.Log;
 
 import androidx.room.Room;
 
@@ -51,17 +50,25 @@ public class App extends Application {
                 .allowMainThreadQueries()
                 .build();
         createNotificationChannel();
+        makeFolders();
+    }
+
+    private void makeFolders() {
+        File appDir = new File(getContext().getFilesDir() + "/" + DataStorage.APP_STORAGE_FOLDER);
+        File assistantDir = new File(getContext().getFilesDir() + "/" + DataStorage.ASSISTANT_STORAGE_FOLDER);
+        appDir.mkdir();
+        assistantDir.mkdir();
     }
 
     public static boolean unpackAssistant() {
         AssetManager assetManager = getContext().getAssets();
-        File unpackFile = new File(getContext().getFilesDir() + "/" + DataStorage.APP_ASSISTANT_FILE_NAME);
+        File unpackFile = new File(getContext().getFilesDir() + "/" + DataStorage.APK_ASSISTANT_FILE_NAME);
         if (!unpackFile.exists()) {
             InputStream in;
             OutputStream out;
             byte[] buffer = new byte[1024];
             try {
-                in = new BufferedInputStream(assetManager.open(DataStorage.APP_ASSISTANT_FILE_NAME));
+                in = new BufferedInputStream(assetManager.open(DataStorage.APK_ASSISTANT_FILE_NAME));
                 out = new BufferedOutputStream(new FileOutputStream(unpackFile));
                 int len = 0;
                 while ((len = in.read(buffer)) != -1) {
@@ -79,8 +86,12 @@ public class App extends Application {
         return true;
     }
     public static void deleteAssistantIntallFile(){
-        File unpackFile = new File(getContext().getFilesDir() + "/" + DataStorage.APP_ASSISTANT_FILE_NAME);
+        File unpackFile = new File(getContext().getFilesDir() + "/" + DataStorage.APK_ASSISTANT_FILE_NAME);
         unpackFile.delete();
+    }
+
+    public static void deleteApkFile(File file){
+        file.delete();
     }
 
     public static Context getContext(){

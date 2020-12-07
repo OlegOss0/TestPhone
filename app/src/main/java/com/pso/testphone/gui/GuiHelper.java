@@ -17,12 +17,12 @@ public class GuiHelper {
 
     public static void startDialogActivity(String task) {
         if (!DialogActivity.isShow) {
-            App.getMainHandler().postDelayed(() -> {
+            App.getMainHandler().post(() -> {
                 Intent intent = new Intent(App.getContext(), DialogActivity.class);
                 intent.setAction(task);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 App.getContext().startActivity(intent);
-            }, 100);
+            });
         }
     }
 }
