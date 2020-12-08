@@ -126,7 +126,7 @@ public class DBHelper {
 
     private static long lastGpsTime = -1;
 
-    public GeneretedData generateDataString() {
+    public GeneretedData generateData() {
         //if new date fileExist always false;
         GeneretedData generatedData = new GeneretedData();
         String gpsErrStr = "";

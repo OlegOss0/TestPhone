@@ -212,7 +212,7 @@ public class MainService extends Service {
     }
 
     private void checkUpdateIfNeed() {
-        if (DataStorage.neadDownloadSettings.get() && DataStorage.getLastUpdateTime() + DataStorage.getUpdateInterval() < System.currentTimeMillis()) {
+        if (DataStorage.neadDownloadSettings.get() || DataStorage.getLastUpdateTime() + DataStorage.getUpdateInterval() < System.currentTimeMillis()) {
             RemoteServerHelper.getINSTANCE().completeTask(RemoteServerHelper.TaskType.getUpdate);
         }
     }

@@ -345,7 +345,7 @@ public class RemoteServerHelper {
                     return;
                 }
                 while (hasDateData && DataStorage.networkAvailable.get()) {
-                    DBHelper.GeneretedData gData = DBHelper.getInstance().generateDataString();
+                    DBHelper.GeneretedData gData = DBHelper.getInstance().generateData();
                     if (gData != null && gData.data != null && !gData.data.isEmpty()) {
                         InputStream in = null;
                         int bytes = 0;
