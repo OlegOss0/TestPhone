@@ -9,6 +9,7 @@ import com.pso.testphone.gui.MainActivityPresenter;
 
 import org.json.JSONException;
 
+import java.io.FileNotFoundException;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
@@ -88,8 +89,10 @@ public class AppLogger {
         }else if(e instanceof StringIndexOutOfBoundsException){
             AppLogger.writeLog(Codes.STRING_IND_OUT_OF_BOUND_EXCEPTION_CODE, Codes.STRING_IND_OUT_OF_BOUND_EXCEPTION_MSG + " " + getStackTraceStr(e));
             return;
+        }else if(e instanceof FileNotFoundException){
+            AppLogger.writeLog(Codes.FILE_NOT_FOUND_EXCEPTION_CODE, Codes.FILE_NOT_FOUND_EXCEPTION_MSG + " " + getStackTraceStr(e));
+            return;
         }
-
         AppLogger.writeLog(Codes.IOEXCEPTION_CODE, Codes.IOEXCEPTION_MSG + " " + getStackTraceStr(e));
     }
 }

@@ -7,17 +7,11 @@ import com.pso.testphone.data.DataStorage;
 import com.pso.testphone.data.DeviceInfo;
 import com.pso.testphone.gui.MainActivityPresenter;
 
-import org.apache.commons.net.ftp.FTPClient;
-
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
-
-import okhttp3.internal.http.HttpHeaders;
 
 public class DBHelper {
 
@@ -50,24 +44,33 @@ public class DBHelper {
         TelemetryFileHeader = initTelemetryFileHeader();
     }
 
-    public class Data{
+    public class Data {
         public final String dataStr;
         public ArrayList<Object> objs = new ArrayList<>();
 
-        Data(String dataStr, Object obj){
+        Data(String dataStr, Object obj) {
             this.dataStr = dataStr;
             this.objs.add(obj);
         }
-        Data(String dataStr){
+
+        Data(String dataStr) {
             this.dataStr = dataStr;
         }
     }
 
-    public class GeneretedData {
+    /*public class GeneretedData {
         public LinkedList<Data> data = new LinkedList<>();
         public String fileName;
         public boolean hasOtherDayData;
         public ArrayList<Object> objDeleteFromDb = new ArrayList<>();
+    }*/
+
+    public class GeneretedData {
+        public String dataStr = "";
+        public String fileName;
+        public boolean hasOtherData;
+        public ArrayList<Object> objDeleteFromDb = new ArrayList<>();
+        public boolean dbHasNextDay;
     }
 
 
@@ -90,23 +93,33 @@ public class DBHelper {
         Calendar tmpDay = null;
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
         List<MyLog> myLogs;
+        int totalEntries = 0;
         try {
-            myLogs = App.getDataBase().myLogDao().getAll();
+            myLogs = App.getDataBase().myLogDao().get(DataStorage.DB_LIMIT);
+            totalEntries = App.getDataBase().myLogDao().getCounts();
         } catch (Exception e) {
+            AppLogger.writeLogEx(e);
             AppLogger.printStackTrace(e);
             MainActivityPresenter.addMsg(true, "Exception when trying to read data from a database");
             return null;
         }
+
+        StringBuilder sb = new StringBuilder();
         if (myLogs != null && !myLogs.isEmpty()) {
-            for (MyLog log : myLogs) {
-                StringBuilder sb = new StringBuilder();
+            if (totalEntries > myLogs.size()) {
+                generatedData.hasOtherData = true;
+            }
+            for (int i = 0; i < myLogs.size(); i++) {
+                MyLog log = myLogs.get(i);
                 final long time = log.time;
                 if (tmpDay == null) {
                     tmpDay = Calendar.getInstance();
                     tmpDay.setTimeInMillis(time);
                     generatedData.fileName = getFileName(time, true);
                 } else if (itNextDay(tmpDay, time)) {
-                    generatedData.hasOtherDayData = true;
+                    if (i < myLogs.size()) generatedData.hasOtherData = true;
+                    generatedData.dbHasNextDay = true;
+                    generatedData.dataStr = sb.toString();
                     return generatedData;
                 }
                 final String code = log.code;
@@ -116,10 +129,11 @@ public class DBHelper {
                         .append(',');
                 sb.append(code)
                         .append(',');
-                sb.append(msg);
-                sb.append('\n');
-                generatedData.data.add(new Data(sb.toString(), log));
+                sb.append(msg)
+                        .append('\n');
+                generatedData.objDeleteFromDb.add(log);
             }
+            generatedData.dataStr = sb.toString();
         }
         return generatedData;
     }
@@ -133,23 +147,31 @@ public class DBHelper {
         Calendar tmpDay = null;
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
         List<TimePoint> timePointList;
+        int allTpCounts = 0;
+
         try {
-            timePointList = App.getDataBase().timePointDao().getAll();
+            timePointList = App.getDataBase().timePointDao().get(DataStorage.DB_LIMIT);
+            allTpCounts = App.getDataBase().timePointDao().getCounts();
         } catch (Exception e) {
+            AppLogger.writeLogEx(e);
             AppLogger.printStackTrace(e);
             MainActivityPresenter.addMsg(true, "Exception when trying to read data from a database");
             return null;
         }
         if (timePointList != null) {
-            for (TimePoint tp : timePointList) {
-                StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder();
+            generatedData.hasOtherData = allTpCounts > timePointList.size();
+            for (int j = 0; j < timePointList.size(); j++) {
+                TimePoint tp = timePointList.get(j);
                 final long time = tp.time;
                 if (tmpDay == null) {
                     tmpDay = Calendar.getInstance();
                     tmpDay.setTimeInMillis(time);
                     generatedData.fileName = getFileName(time, false);
                 } else if (itNextDay(tmpDay, time)) {
-                    generatedData.hasOtherDayData = true;
+                    if(j < timePointList.size())generatedData.hasOtherData = true;
+                    generatedData.dataStr = sb.toString();
+                    generatedData.dbHasNextDay = true;
                     return generatedData;
                 }
                 final String airMode = DataStorage.isAirModeCheckingEnabled() ? (tp.airMode == 1 ? ON : OFF) : DISABLED;
@@ -167,12 +189,13 @@ public class DBHelper {
                 final String appVersion = tp.appVersion;
                 final String deniedPerms = DataStorage.isPermissionsCheckingEnabled() ? tp.noPermissions : DISABLED;
 
-                List<Provider> providersList = null;
+                List<Provider> providersList;
                 {
                     try {
                         providersList = App.getDataBase().providerDao().getProvidersByTime(time);
                     } catch (Exception e) {
                         AppLogger.printStackTrace(e);
+                        AppLogger.writeLogEx(e);
                         MainActivityPresenter.addMsg(true, "Exception when trying to read time point data from a database, time point was deleted");
                         App.getDataBase().timePointDao().delete(tp);
                         continue;
@@ -273,14 +296,13 @@ public class DBHelper {
                             .append(',');
                     sb.append(deniedPerms)
                             .append(',');
-                    sb.append('\n');
                     gpsErrStr = EMPTY;
                 }
-                Data d = new Data(sb.toString());
-                d.objs.add(tp);
-                d.objs.addAll(providersList);
-                generatedData.data.add(d);
+                sb.append('\n');
+                generatedData.objDeleteFromDb.add(tp);
+                generatedData.objDeleteFromDb.addAll(providersList);
             }
+            generatedData.dataStr = sb.toString();
         }
         return generatedData;
     }

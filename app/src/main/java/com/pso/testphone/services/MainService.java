@@ -108,7 +108,7 @@ public class MainService extends Service {
             sendLogsIfNeed();
 
             if (!DeviceInfo.isGpsEnable()) {
-                startDialogActivity(NEED_ENABLED_ALL_LOCATION);
+                startDialogActivity(NEED_ENABLED_ALL_LOCATION, false);
             }
 
             showRebootMsgIfNeed();
@@ -162,7 +162,7 @@ public class MainService extends Service {
         if (PermissionHelper.hasWriteExtStoragePermission()) {
             if (DataStorage.lastShowAssistanrMsgTime.get() + DataStorage.SHOW_ASSISTANR_MSG_INT < System.currentTimeMillis()) {
                 DataStorage.lastShowAssistanrMsgTime.set(System.currentTimeMillis());
-                startDialogActivity(ServerTaskListener.UPDATE_ASSISTANT);
+                startDialogActivity(ServerTaskListener.UPDATE_ASSISTANT, false);
             }
         }
     }
@@ -170,7 +170,7 @@ public class MainService extends Service {
         if (PermissionHelper.hasWriteExtStoragePermission()) {
             if (DataStorage.lastShowAppUpdateMsgTime.get() + DataStorage.SHOW_ASSISTANR_MSG_INT < System.currentTimeMillis()) {
                 DataStorage.lastShowAppUpdateMsgTime.set(System.currentTimeMillis());
-                startDialogActivity(ServerTaskListener.UPDATE_APP);
+                startDialogActivity(ServerTaskListener.UPDATE_APP, false);
             }
         }
     }
@@ -179,7 +179,7 @@ public class MainService extends Service {
         if (PermissionHelper.hasWriteExtStoragePermission()) {
             if (DataStorage.lastShowAssistanrMsgTime.get() + DataStorage.SHOW_ASSISTANR_MSG_INT < System.currentTimeMillis()) {
                 DataStorage.lastShowAssistanrMsgTime.set(System.currentTimeMillis());
-                startDialogActivity(ServerTaskListener.INSTALL_ASSISTANT);
+                startDialogActivity(ServerTaskListener.INSTALL_ASSISTANT, false);
             }
         }
     }
@@ -193,7 +193,7 @@ public class MainService extends Service {
             } else {
                 if (RemoteServerHelper.getINSTANCE().updateFileExist()) {
                     if (PermissionHelper.hasWriteExtStoragePermission()) {
-                        startDialogActivity(ServerTaskListener.UPDATE_APP);
+                        startDialogActivity(ServerTaskListener.UPDATE_APP, false);
                     }
                 } else {
                     DataStorage.setUpdateFileName("");
@@ -206,8 +206,8 @@ public class MainService extends Service {
     private void showRebootMsgIfNeed() {
         final long curTime = System.currentTimeMillis();
         if (curTime - DeviceInfo.getBootTime() > DataStorage.getShowRebootMsgInTime() && curTime - DataStorage.getGpsTime() > DataStorage.getShowRebootMsgInTime()
-                && DataStorage.getLastTimeShowRebootMsg() - curTime > DataStorage.getShowRebootMsgInTime()) {
-            startDialogActivity(ServerTaskListener.REBOOT_DEVICE);
+                && curTime - DataStorage.getLastTimeShowRebootMsg() > DataStorage.getShowRebootMsgInTime()) {
+            startDialogActivity(ServerTaskListener.REBOOT_DEVICE, true);
         }
     }
 
@@ -401,4 +401,18 @@ public class MainService extends Service {
             }
         }
     };
+
+    /*private void startDialogActivity(String task, boolean immediately) {
+        if (immediately || !DialogActivity.isShow) {
+            App.getMainHandler().post(() -> {
+                Intent intent = new Intent(this, DialogActivity.class);
+                intent.setAction(task);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                if(immediately){
+                    intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                }
+                this.startActivity(intent);
+            });
+        }
+    }*/
 }

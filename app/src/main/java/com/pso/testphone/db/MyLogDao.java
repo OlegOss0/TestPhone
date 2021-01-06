@@ -13,6 +13,12 @@ public interface MyLogDao {
     @Query("SELECT * FROM MyLog")
     List<MyLog> getAll();
 
+    @Query("SELECT * FROM MyLog LIMIT :count")
+    List<MyLog> get(int count);
+
+    @Query("SELECT COUNT(*) FROM MyLog")
+    Integer getCounts();
+
     @Insert
     void insert(MyLog myLog);
 

@@ -14,6 +14,12 @@ public interface TimePointDao {
         @Query("SELECT * FROM timepoint")
         List<TimePoint> getAll();
 
+        @Query("SELECT * FROM timepoint LIMIT :count")
+        List<TimePoint> get(int count);
+
+        @Query("SELECT COUNT(*) FROM timepoint")
+        Integer getCounts();
+
         @Insert
         void insert(TimePoint timePoint);
 

@@ -17,4 +17,8 @@
     <string name="send_logs">Send logs</string>
     <string name="clear_info">Clear Info</string>
     <string name="closed">Closed</string>
+    <string name="attempt_to_download_a_file">Attempt to download a file</string>
+
+    <!--Errors msg-->
+    <string name="error_parsing_the_settings_file">Error parsing the settings file</string>
 </resources>

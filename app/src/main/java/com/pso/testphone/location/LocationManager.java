@@ -12,6 +12,8 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import com.pso.testphone.App;
 import com.pso.testphone.AppLogger;
 import com.pso.testphone.data.DataStorage;
@@ -32,7 +34,7 @@ import static android.location.GnssStatus.CONSTELLATION_IRNSS;
 import static android.location.GnssStatus.CONSTELLATION_QZSS;
 import static android.location.GnssStatus.CONSTELLATION_SBAS;
 
-public class LocationManager {
+public class LocationManager implements LocationListener {
     private LocationListenerNetwork networkLocationListener = new LocationListenerNetwork();
     private LocationListenerGPS gpsLocationListener = new LocationListenerGPS();
     private mGnssStatusCallback mGnssStatusCallback;
@@ -48,9 +50,8 @@ public class LocationManager {
     @SuppressLint("MissingPermission")
     public void initLocationListeners() {
         locationManager = (android.location.LocationManager) App.getContext().getSystemService(Context.LOCATION_SERVICE);
-        assert locationManager != null;
-        locationManager.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 1500, 5, gpsLocationListener, App.getBgHandler().getLooper());
-        locationManager.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 1500, 5, networkLocationListener, App.getBgHandler().getLooper());
+        //locationManager.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 1500, 5, gpsLocationListener, App.getBgHandler().getLooper());
+        //locationManager.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 1500, 5, networkLocationListener, App.getBgHandler().getLooper());
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             mGnssStatusCallback = new mGnssStatusCallback();
             locationManager.registerGnssStatusCallback(mGnssStatusCallback);
@@ -65,16 +66,14 @@ public class LocationManager {
         if(!PermissionHelper.hasLocationPermissions())
             return null;
         HashMap<String, Provider> providers = new HashMap<>();
-        Location location = null;
         float bestAccuracy = -1;
         long minTime = -1, bestTime = -1;
 
         List<String> matchingProviders = locationManager.getAllProviders();
         for (String providerName : matchingProviders) {
+            locationManager.requestLocationUpdates(providerName, 1500, 0, this);
             DeviceInfo.setProviderState(providerName, locationManager.isProviderEnabled(providerName));
-            if (PermissionHelper.hasLocationPermissions()) {
-                location = locationManager.getLastKnownLocation(providerName);
-            }
+            Location location = locationManager.getLastKnownLocation(providerName);
             if (location != null) {
                 float accuracy = location.getAccuracy();
                 long time = location.getTime();
@@ -119,6 +118,26 @@ public class LocationManager {
         }
     }
 
+    @Override
+    public void onLocationChanged(@NonNull Location location) {
+
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
+    @Override
+    public void onProviderEnabled(@NonNull String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(@NonNull String provider) {
+
+    }
+
     @SuppressLint("MissingPermission")
     private class GpsStatusListener implements GpsStatus.Listener {
         @Override
@@ -144,7 +163,6 @@ public class LocationManager {
 
     @SuppressLint("NewApi")
     private class mGnssStatusCallback extends GnssStatus.Callback {
-
         @Override
         public void onSatelliteStatusChanged(GnssStatus status) {
             synchronized (satellitesInfo) {

@@ -4,7 +4,9 @@ import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.content.IntentFilter;
 import android.content.res.AssetManager;
+import android.net.ConnectivityManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -16,6 +18,7 @@ import com.pso.testphone.data.DataStorage;
 import com.pso.testphone.data.DeviceInfo;
 import com.pso.testphone.db.AppDataBase;
 import com.pso.testphone.gui.MainActivityPresenter;
+import com.pso.testphone.network.ConnectionManager;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -51,6 +54,7 @@ public class App extends Application {
                 .build();
         createNotificationChannel();
         makeFolders();
+        registerReseivers();
     }
 
     private void makeFolders() {
@@ -58,6 +62,22 @@ public class App extends Application {
         File assistantDir = new File(getContext().getFilesDir() + "/" + DataStorage.ASSISTANT_STORAGE_FOLDER);
         appDir.mkdir();
         assistantDir.mkdir();
+    }
+
+    public static void registerReseivers() {
+        registerConnectionsChangeReseiver();
+        //registerConnStateMonitor();
+    }
+
+    private void registerConnStateMonitor() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            new ConnectionManager.ConnectionStateMonitor().enable(mContext);
+        }
+    }
+
+    private static void registerConnectionsChangeReseiver() {
+        IntentFilter intentFilter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+        mContext.registerReceiver(new ConnectionManager.ConnectionChangeReceiver(), intentFilter);
     }
 
     public static boolean unpackAssistant() {
@@ -125,8 +145,5 @@ public class App extends Application {
     public void onTerminate() {
         super.onTerminate();
     }
-
-
-
 
 }

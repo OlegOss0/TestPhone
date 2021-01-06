@@ -15,12 +15,13 @@ public class GuiHelper {
         App.getContext().startActivity(intent);
     }
 
-    public static void startDialogActivity(String task) {
-        if (!DialogActivity.isShow) {
+    public static void startDialogActivity(String task, boolean immediately) {
+        if (immediately || !DialogActivity.isShow) {
             App.getMainHandler().post(() -> {
                 Intent intent = new Intent(App.getContext(), DialogActivity.class);
                 intent.setAction(task);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
                 App.getContext().startActivity(intent);
             });
         }

@@ -38,7 +38,6 @@ public class DialogActivity extends AppCompatActivity implements View.OnClickLis
     public static boolean isShow = false;
     Button button;
     TextView tv;
-    private int curRequestCode = -1;
     private String action = "";
     private File finalInstallApk;
 
@@ -113,21 +112,37 @@ public class DialogActivity extends AppCompatActivity implements View.OnClickLis
         }
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+    }
+
+    @Override
+    protected void onDestroy() {
+        isShow = false;
+        super.onDestroy();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+    }
+
 
     @SuppressLint("InlinedApi")
     private void installPackage(Uri uri, int requestCode) {
         if (uri == null) {
-            Toast.makeText(this, "Uri install packege = null", Toast.LENGTH_LONG);
+            Toast.makeText(this, "Uri install package = null", Toast.LENGTH_SHORT).show();
             finishAffinity();
             return;
         }
         if ((Build.VERSION.SDK_INT < 24) && (!uri.getScheme().equals("file"))) {
-            Toast.makeText(this, "PackageInstaller < Android N only supports file scheme!", Toast.LENGTH_LONG);
+            Toast.makeText(this, "PackageInstaller < Android N only supports file scheme!", Toast.LENGTH_SHORT).show();
             finishAffinity();
             return;
         }
         if ((Build.VERSION.SDK_INT >= 24) && (!uri.getScheme().equals("content"))) {
-            Toast.makeText(this, "PackageInstaller >= Android N only supports content scheme!", Toast.LENGTH_LONG);
+            Toast.makeText(this, "PackageInstaller >= Android N only supports content scheme!", Toast.LENGTH_SHORT).show();
             finishAffinity();
             return;
         }
@@ -167,12 +182,12 @@ public class DialogActivity extends AppCompatActivity implements View.OnClickLis
 
     @Override
     public void onClick(View view) {
-        if(action != null){
-            switch(action){
+        if (action != null) {
+            switch (action) {
                 case UPDATE_APP:
                 case UPDATE_ASSISTANT:
                 case INSTALL_ASSISTANT:
-                    if(finalInstallApk != null && finalInstallApk.exists()){
+                    if (finalInstallApk != null && finalInstallApk.exists()) {
                         int requestCode = generateRequestCode(action);
                         SystemBroadcastReceiver.createAlarm();
                         Uri packageIri;
@@ -201,11 +216,11 @@ public class DialogActivity extends AppCompatActivity implements View.OnClickLis
     }
 
     private int generateRequestCode(String action) {
-        if(action.equals(UPDATE_APP)){
+        if (action.equals(UPDATE_APP)) {
             return APP_UPDATE_REQUEST;
-        }else if(action.equals(INSTALL_ASSISTANT)){
+        } else if (action.equals(INSTALL_ASSISTANT)) {
             return APP_INSTALL_ASSISTANT_REQUEST;
-        }else if(action.equals(UPDATE_ASSISTANT)) {
+        } else if (action.equals(UPDATE_ASSISTANT)) {
             return APP_UPDATE_ASSISTANT_REQUEST;
         }
         return -1;
@@ -217,24 +232,6 @@ public class DialogActivity extends AppCompatActivity implements View.OnClickLis
         startActivityForResult(appSettingsIntent, DataStorage.REGUEST_CODE_GPS_ENABLE);
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        /*isShow = true;*/
-    }
-
-    @Override
-    protected void onDestroy() {
-        isShow = false;
-        super.onDestroy();
-    }
-
-    @Override
-    protected void onStop() {
-        //isShow = false;
-        super.onStop();
-    }
-
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
             case APP_UPDATE_REQUEST:
@@ -243,7 +240,7 @@ public class DialogActivity extends AppCompatActivity implements View.OnClickLis
                     finalInstallApk = null;
                     resetVersionValues(APP_UPDATE_REQUEST);
                     finish();
-                }else if(requestCode == RESULT_FIRST_USER){
+                } else if (requestCode == RESULT_FIRST_USER) {
                     App.deleteApkFile(finalInstallApk);
                 }
                 break;
@@ -254,7 +251,7 @@ public class DialogActivity extends AppCompatActivity implements View.OnClickLis
                     DeviceInfo.getInstallApplications(App.getContext());
                     finalInstallApk = null;
                     finish();
-                }else if(requestCode == RESULT_FIRST_USER){
+                } else if (requestCode == RESULT_FIRST_USER) {
                     App.deleteApkFile(finalInstallApk);
                 }
                 break;
@@ -265,7 +262,7 @@ public class DialogActivity extends AppCompatActivity implements View.OnClickLis
                     App.deleteApkFile(finalInstallApk);
                     finalInstallApk = null;
                     finish();
-                }else if(requestCode == RESULT_FIRST_USER){
+                } else if (requestCode == RESULT_FIRST_USER) {
                     App.deleteApkFile(finalInstallApk);
                 }
                 break;
@@ -273,7 +270,7 @@ public class DialogActivity extends AppCompatActivity implements View.OnClickLis
     }
 
     private void resetVersionValues(int request) {
-        switch (request){
+        switch (request) {
             case APP_UPDATE_REQUEST:
                 DataStorage.setAppAvailableVersion("");
                 break;
@@ -282,7 +279,6 @@ public class DialogActivity extends AppCompatActivity implements View.OnClickLis
                 DataStorage.setAssistantAvailableVersion("");
                 break;
         }
-
     }
 }
 

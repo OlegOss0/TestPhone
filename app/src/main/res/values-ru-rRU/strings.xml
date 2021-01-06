@@ -17,4 +17,8 @@
     <string name="send_logs">Выгрузить файл логов</string>
     <string name="clear_info">Очистить окно</string>
     <string name="closed">Закрыть</string>
+    <string name="attempt_to_download_a_file">Попытка загрузить файл</string>
+
+    <!--Errors msg-->
+    <string name="error_parsing_the_settings_file">Ошибка при разборе файла настроек</string>
 </resources>

@@ -130,7 +130,7 @@ public class PreferenceManager {
     }
 
     protected long getGpsTimePref() {
-        return sPref.getLong(GPS_TIME, -1);
+        return sPref.getLong(GPS_TIME, System.currentTimeMillis());
     }
 
     protected void setGpsTimePref(long time){
@@ -184,7 +184,7 @@ public class PreferenceManager {
 
     //reboot msg
     public long getLastTimeShowRebootMsgPref() {
-        return sPref.getLong(LAST_SHOW_REBOOT_MSG_TIME_PREF, DEF_VALUE);
+        return sPref.getLong(LAST_SHOW_REBOOT_MSG_TIME_PREF, System.currentTimeMillis());
     }
     public void setLastTimeShowRebootMsgPref(long time) {
         editor.putLong(LAST_SHOW_REBOOT_MSG_TIME_PREF, time).apply();

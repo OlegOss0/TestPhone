@@ -45,6 +45,8 @@ public class Codes {
     public static final String VALUES_SET = "New values set";
     public static final String VALUES_NOT_SET = "New values not set";
 
+    public static final String ERROR_APPEND_TO_FILE_MSG = "error to append file";
+
     //exeptions 040 >
     public static final String IOEXCEPTION_CODE = "040";
     public static final String IOEXCEPTION_MSG = "IOException";
@@ -60,6 +62,9 @@ public class Codes {
     public static final String MALFORMED_URL_EXCEPTION_MSG = "MalformedURLException";
     public static final String STRING_IND_OUT_OF_BOUND_EXCEPTION_CODE = "046";
     public static final String STRING_IND_OUT_OF_BOUND_EXCEPTION_MSG= "StringIndexOutOfBoundsException";
+    public static final String FILE_NOT_FOUND_EXCEPTION_CODE = "047";
+    public static final String FILE_NOT_FOUND_EXCEPTION_MSG = "FileNotFoundException";
+
 
     public static final String TASK_CODE = "050";
     public static final String TASK_DELAY_MSG = "Task was delayed ";

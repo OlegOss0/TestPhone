@@ -20,9 +20,11 @@ import androidx.annotation.RequiresApi;
 import com.pso.testphone.App;
 import com.pso.testphone.AppLogger;
 import com.pso.testphone.BuildConfig;
+import com.pso.testphone.R;
 import com.pso.testphone.data.Codes;
 import com.pso.testphone.data.DataStorage;
 import com.pso.testphone.data.DeviceInfo;
+import com.pso.testphone.data.StringHelper;
 import com.pso.testphone.db.DBHelper;
 import com.pso.testphone.gui.GuiHelper;
 import com.pso.testphone.gui.MainActivityPresenter;
@@ -63,6 +65,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
+import static com.pso.testphone.data.Codes.ERROR_APPEND_TO_FILE_MSG;
 import static com.pso.testphone.data.Codes.IOEXCEPTION_CODE;
 import static com.pso.testphone.data.Codes.IOEXCEPTION_MSG;
 import static com.pso.testphone.data.Codes.MALFORMED_URL_EXCEPTION_CODE;
@@ -75,7 +78,6 @@ import static com.pso.testphone.data.Codes.VALUES_SET_CODE;
 public class RemoteServerHelper {
     private final static String TAG = RemoteServerHelper.class.getSimpleName();
     private final static String SERVER_UPDATE_ADRESS = "https://apk.ak-cloud.ru/";
-    private final static String GOOGLE_ADRESS = "http://google.com";
     private final static String PROPERTIES_FILE = "properties";
     private final static String PROPERTIES_FILE_TEST = "properties_test";
     private final static String folder = "uploads";
@@ -86,12 +88,9 @@ public class RemoteServerHelper {
     private static RemoteServerHelper INSTANCE;
     private final static int CONNECTION_TIMEOUT = 10000;
     private final Object lock = new Object();
-    private static ConnectionStateMonitor mConnectionStateMonitor;
-    private static ConnectionChangeReceiver mConnectionChangeReceiver;
-    private static final String[] IP_SERVICE_URLS = {"https://api.my-ip.io/ip.json", "https://api.myip.com/"};
     private AtomicReference<LinkedList<TaskType>> taskQueue = new AtomicReference<>(new LinkedList<>());
-    private AtomicReference<TaskType> currTask = new AtomicReference<>();
-    private Handler mainHandler = new Handler();
+    private AtomicReference<TaskType> currTask = new AtomicReference<>(TaskType.Idle);
+    final private Handler mainHandler = new Handler();
     private static String mNewAppVersion = "";
 
     private final String DAY_CHAR = "d";
@@ -139,20 +138,28 @@ public class RemoteServerHelper {
     public static RemoteServerHelper getINSTANCE() {
         if (INSTANCE == null) {
             INSTANCE = new RemoteServerHelper();
-            reqisterConnectionListener();
+            //reqisterConnectionListener();
         }
         return INSTANCE;
     }
 
 
-    private static void reqisterConnectionListener() {
+    /*private static void reqisterConnectionListener() {
         IntentFilter intentFilter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
         mConnectionChangeReceiver = new ConnectionChangeReceiver();
         App.getContext().registerReceiver(mConnectionChangeReceiver, intentFilter);
-    }
+    }*/
 
     private boolean networkAvailableAndFree() {
         return DataStorage.networkAvailable.get() && mState.get() == States.IDLE;
+    }
+
+    private boolean isNetworkAvailable(){
+        return DataStorage.networkAvailable.get();
+    }
+
+    private boolean isNetworkFree(){
+        return mState.get() == States.IDLE;
     }
 
     private void delayTask(TaskType task) {
@@ -222,11 +229,16 @@ public class RemoteServerHelper {
     public enum TaskType {Idle, SendData, SendLogs, getUpdate, getAppNewVer, getAssistantNewVer}
 
     public void completeTask(TaskType taskType) {
-        if (currTask.get() == taskType)
+        if (currTask.get() == taskType) {
+            MainActivityPresenter.addMsg(true, NETWORK_NOT_AVAILABLE_MSG + ". " + currTask.get().name() + " is already running");
             return;
+        }
+        if(!isNetworkAvailable()){
+            ConnectionManager.forcedСonnectionСheck();
+        }
         if (!networkAvailableAndFree()) {
             AppLogger.writeLog(Codes.NETWORK_NOT_AVAILABLE_CODE, NETWORK_NOT_AVAILABLE_MSG);
-            MainActivityPresenter.addMsg(true, NETWORK_NOT_AVAILABLE_MSG);
+            MainActivityPresenter.addMsg(true, NETWORK_NOT_AVAILABLE_MSG + ". " + currTask.get().name()  + " running, " + taskType.name() + " requests");
             delayTask(taskType);
             return;
         }
@@ -271,7 +283,6 @@ public class RemoteServerHelper {
             currTask.set(TaskType.SendLogs);
             mState.set(States.BUSY);
             final String uploadServer = DataStorage.getUploadServerAddress();
-            boolean done = false;
             boolean hasDateData = true;
             FTPClient ftpClient = new FTPClient();
             if (connectionToUploadServer(ftpClient, uploadServer)) {
@@ -287,26 +298,35 @@ public class RemoteServerHelper {
                     removeTaskAndGoToIdle(currTask.get());
                     return;
                 }
+                String fileName = "";
+                int bytesCount = 0;
+                MainActivityPresenter.addMsg(true, "Sending logs");
                 while (hasDateData && DataStorage.networkAvailable.get()) {
                     DBHelper.GeneretedData gData = DBHelper.getInstance().getLogsData();
-                    if (gData != null && gData.data != null && !gData.data.isEmpty()) {
-                        InputStream in = null;
+                    if (gData != null && !gData.dataStr.isEmpty()) {
+                        InputStream in;
                         try {
-                            MainActivityPresenter.addMsg(true, "Sending logs");
                             AppLogger.writeLog(Codes.START_UNLOAD_FILE_CODE, Codes.START_UNLOAD_FILE_MSG + " name = " + gData.fileName);
-                            int bytes = 0;
-                            for (DBHelper.Data d : gData.data) {
-                                in = new ByteArrayInputStream(d.dataStr.getBytes("windows-1251"));
-                                bytes = bytes + d.dataStr.getBytes().length;
-                                if (ftpClient.appendFile(gData.fileName, in)) {
-                                    gData.objDeleteFromDb.addAll(d.objs);
+                            in = new ByteArrayInputStream(gData.dataStr.getBytes("windows-1251"));
+                            if (!ftpClient.appendFile(gData.fileName, in)) {
+                                AppLogger.writeLog(Codes.START_UNLOAD_FILE_CODE, ERROR_APPEND_TO_FILE_MSG + " name = " + gData.fileName);
+                                MainActivityPresenter.addMsg(true, ERROR_APPEND_TO_FILE_MSG + gData.fileName + " done!");
+                                hasDateData = false;
+                            } else {
+                                if(fileName.isEmpty()) fileName = gData.fileName;
+                                bytesCount = bytesCount + gData.dataStr.getBytes().length;
+                                DBHelper.deleteSendingDataFromDb(gData.objDeleteFromDb);
+                                hasDateData = gData.hasOtherData;
+
+                                if(hasDateData && gData.dbHasNextDay){
+                                    AppLogger.writeLog(Codes.UNLOAD_FILE_FINISH_CODE, Codes.UNLOAD_FILE_FINISH_MSG + " name = " + fileName +
+                                            " size = " + DeviceInfo.bytesToHuman(bytesCount));
+                                    MainActivityPresenter.addMsg(true, "Send data file " + fileName + " done!");
+                                    bytesCount = 0;
+                                    fileName = "";
                                 }
                             }
                             in.close();
-                            AppLogger.writeLog(Codes.UNLOAD_FILE_FINISH_CODE, Codes.UNLOAD_FILE_FINISH_MSG + " name = " + gData.fileName +
-                                    " size = " + DeviceInfo.bytesToHuman(bytes));
-                            MainActivityPresenter.addMsg(true, "Send logs file " + gData.fileName + " done!");
-                            hasDateData = gData.hasOtherDayData;
                         } catch (UnsupportedEncodingException e) {
                             AppLogger.writeLogEx(e);
                             hasDateData = false;
@@ -314,12 +334,16 @@ public class RemoteServerHelper {
                             AppLogger.writeLogEx(e);
                             hasDateData = false;
                         }
-                        DBHelper.deleteSendingDataFromDb(gData.objDeleteFromDb);
                     } else {
                         AppLogger.writeLog(Codes.NO_DATA_CODE, Codes.NO_DATA_MSG);
                         MainActivityPresenter.addMsg(true, Codes.NO_DATA_MSG);
                         hasDateData = false;
                     }
+                }
+                if(bytesCount > 0){
+                    AppLogger.writeLog(Codes.UNLOAD_FILE_FINISH_CODE, Codes.UNLOAD_FILE_FINISH_MSG + " name = " + fileName +
+                            " size = " + DeviceInfo.bytesToHuman(bytesCount));
+                    MainActivityPresenter.addMsg(true, "Send logs file " + fileName + " done!");
                 }
                 disconnectServer(ftpClient);
                 DataStorage.setLastUnloadLogsTime(System.currentTimeMillis());
@@ -344,33 +368,42 @@ public class RemoteServerHelper {
                     removeTaskAndGoToIdle(currTask.get());
                     return;
                 }
+                int bytes = 0;
+                String fileName = "";
+                MainActivityPresenter.addMsg(true, "Sending data file");
                 while (hasDateData && DataStorage.networkAvailable.get()) {
                     DBHelper.GeneretedData gData = DBHelper.getInstance().generateData();
-                    if (gData != null && gData.data != null && !gData.data.isEmpty()) {
-                        InputStream in = null;
-                        int bytes = 0;
-                        MainActivityPresenter.addMsg(true, "Sending data file");
+
+                    if (gData != null && !gData.dataStr.isEmpty()) {
+                        InputStream in;
                         try {
                             AppLogger.writeLog(Codes.START_UNLOAD_FILE_CODE, Codes.START_UNLOAD_FILE_MSG + " name = " + gData.fileName);
-                            String headerStr = "";
+
                             if (!fileExists(ftpClient, gData.fileName)) {
-                                headerStr = DBHelper.TelemetryFileHeader + ",Device info: " + DeviceInfo.getFull() + '\n';
-                                in = new ByteArrayInputStream(headerStr.getBytes("windows-1251"));
-                                ftpClient.appendFile(gData.fileName, in);
-                                bytes = bytes + headerStr.getBytes().length;
+                                gData.dataStr = StringHelper.addHeader(gData.dataStr);
                             }
-                            for (DBHelper.Data d : gData.data) {
-                                in = new ByteArrayInputStream(d.dataStr.getBytes("windows-1251"));
-                                if (ftpClient.appendFile(gData.fileName, in)) {
-                                    bytes = bytes + d.dataStr.getBytes().length;
-                                    gData.objDeleteFromDb.addAll(d.objs);
+
+                            in = new ByteArrayInputStream(gData.dataStr.getBytes("windows-1251"));
+                            if (!ftpClient.appendFile(gData.fileName, in)) {
+                                AppLogger.writeLog(Codes.START_UNLOAD_FILE_CODE, ERROR_APPEND_TO_FILE_MSG + " name = " + gData.fileName);
+                                MainActivityPresenter.addMsg(true, ERROR_APPEND_TO_FILE_MSG + gData.fileName + " done!");
+                                hasDateData = false;
+                            } else {
+                                if(fileName.isEmpty()) fileName = gData.fileName;
+
+                                bytes = bytes + gData.dataStr.getBytes().length;
+                                DBHelper.deleteSendingDataFromDb(gData.objDeleteFromDb);
+                                hasDateData = gData.hasOtherData;
+
+                                if(hasDateData && gData.dbHasNextDay){
+                                    AppLogger.writeLog(Codes.UNLOAD_FILE_FINISH_CODE, Codes.UNLOAD_FILE_FINISH_MSG + " name = " + fileName +
+                                            " size = " + DeviceInfo.bytesToHuman(bytes));
+                                    MainActivityPresenter.addMsg(true, "Send data file " + fileName + " done!");
+                                    bytes = 0;
+                                    fileName = "";
                                 }
                             }
                             in.close();
-                            AppLogger.writeLog(Codes.UNLOAD_FILE_FINISH_CODE, Codes.UNLOAD_FILE_FINISH_MSG+ " name = " + gData.fileName +
-                                    " size = " + DeviceInfo.bytesToHuman(bytes));
-                            MainActivityPresenter.addMsg(true, "Send data file " + gData.fileName + " done!");
-                            hasDateData = gData.hasOtherDayData;
                         } catch (UnsupportedEncodingException e) {
                             AppLogger.writeLogEx(e);
                             hasDateData = false;
@@ -378,12 +411,16 @@ public class RemoteServerHelper {
                             hasDateData = false;
                             AppLogger.writeLogEx(e);
                         }
-                        DBHelper.deleteSendingDataFromDb(gData.objDeleteFromDb);
                     } else {
                         AppLogger.writeLog(Codes.NO_DATA_CODE, Codes.NO_DATA_MSG);
                         MainActivityPresenter.addMsg(true, Codes.NO_DATA_MSG);
                         hasDateData = false;
                     }
+                }
+                if(bytes > 0){
+                    AppLogger.writeLog(Codes.UNLOAD_FILE_FINISH_CODE, Codes.UNLOAD_FILE_FINISH_MSG + " name = " + fileName +
+                            " size = " + DeviceInfo.bytesToHuman(bytes));
+                    MainActivityPresenter.addMsg(true, "Send data file " + fileName + " done!");
                 }
                 disconnectServer(ftpClient);
                 DataStorage.setLastUnloadDataFileTime(System.currentTimeMillis());
@@ -545,21 +582,16 @@ public class RemoteServerHelper {
         } catch (JSONException e) {
             AppLogger.writeLogEx(e);
             e.printStackTrace();
+            MainActivityPresenter.addMsg(true, Codes.JSONEXCEPTION_EXCEPTION_MSG + "." + App.getContext().getString(R.string.error_parsing_the_settings_file));
+            MainActivityPresenter.addMsg(true, VALUES_NOT_SET);
             return;
         }
         setValue(ValueType.APP_AVAILABLE_VERSION, version);
         setValue(ValueType.APP_ASSISTANT_AVAILABLE_VERSION, assitantVersion);
-        /*if (needUpdate(version)) {
-            taskQueue.get().addFirst(TaskType.getAppNewVer);
-            mNewAppVersion = version;
-        } else {
-            removeLastUpdateFiles();
-        }*/
         if (BuildConfig.DEBUG) {
             unloadDataFileInt = "2 m";
             updateInterval = "3 m";
         }
-
         if (setValue(ValueType.UPLOAD_SERVER_ADDRESS, unloadServerAddress) && setValue(ValueType.ADMIN_PASS, password) && setValue(ValueType.WRITE_INT, writeInterval)
                 && setValue(ValueType.UNLOAD_DATA_FILE_INT, unloadDataFileInt) && setValue(ValueType.UPDATE_INT, updateInterval) && setValue(ValueType.SHOW_REBOOT_MSG_TIME, showRebootMsg)
                 && setValue(ValueType.UNLOAD_LOG_INT, uploadLogInt) && setValue(ValueType.EXCHANGE_INT, exchangeInt)) {
@@ -666,7 +698,7 @@ public class RemoteServerHelper {
     private void downloadFile(final String remoteFileName) {
         synchronized (lock) {
             mState.set(States.BUSY);
-            MainActivityPresenter.addMsg(true, "Start download file " + remoteFileName);
+            MainActivityPresenter.addMsg(true, App.getContext().getString(R.string.attempt_to_download_a_file) + " " + remoteFileName);
             boolean result = false;
             byte[] buffer = new byte[8192];
             File lFileName = null;
@@ -691,7 +723,6 @@ public class RemoteServerHelper {
             try {
                 url = new URL(urlStr);
             } catch (MalformedURLException e) {
-                AppLogger.writeLog(MALFORMED_URL_EXCEPTION_CODE, MALFORMED_URL_EXCEPTION_MSG);
                 AppLogger.writeLogEx(e);
                 lFileName.delete();
                 delayRemoveTaskAndGoToIdle(currTask.get());
@@ -700,7 +731,6 @@ public class RemoteServerHelper {
             try {
                 urlConnection = (HttpURLConnection) url.openConnection();
             } catch (IOException e) {
-                AppLogger.writeLog(IOEXCEPTION_CODE, IOEXCEPTION_MSG);
                 AppLogger.writeLogEx(e);
                 lFileName.delete();
                 delayRemoveTaskAndGoToIdle(currTask.get());
@@ -710,7 +740,6 @@ public class RemoteServerHelper {
             try {
                 in = new BufferedInputStream(urlConnection.getInputStream());
             } catch (IOException e) {
-                AppLogger.writeLog(IOEXCEPTION_CODE, IOEXCEPTION_MSG);
                 AppLogger.writeLogEx(e);
                 lFileName.delete();
                 delayRemoveTaskAndGoToIdle(currTask.get());
@@ -734,7 +763,6 @@ public class RemoteServerHelper {
                 }
                 out.close();
             } catch (IOException e) {
-                AppLogger.writeLog(IOEXCEPTION_CODE, IOEXCEPTION_MSG);
                 AppLogger.writeLogEx(e);
                 lFileName.delete();
                 delayRemoveTaskAndGoToIdle(currTask.get());
@@ -746,11 +774,11 @@ public class RemoteServerHelper {
             if (result) {
                 if (remoteFileName.contains(DataStorage.TP_ASSISTANT)) {
                     App.getMainHandler().post(() -> {
-                        GuiHelper.startDialogActivity(ServerTaskListener.UPDATE_ASSISTANT);
+                        GuiHelper.startDialogActivity(ServerTaskListener.UPDATE_ASSISTANT, false);
                     });
                 } else if (remoteFileName.contains(DataStorage.APP_NAME)) {
                     App.getMainHandler().post(() -> {
-                        GuiHelper.startDialogActivity(ServerTaskListener.UPDATE_APP);
+                        GuiHelper.startDialogActivity(ServerTaskListener.UPDATE_APP, false);
                     });
                 }
                 removeTaskAndGoToIdle(currTask.get());
@@ -854,152 +882,5 @@ public class RemoteServerHelper {
 
         }
         return -1;
-    }
-
-    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-    public static class ConnectionStateMonitor extends ConnectivityManager.NetworkCallback {
-        final NetworkRequest networkRequest;
-
-        public ConnectionStateMonitor() {
-            networkRequest = new NetworkRequest.Builder()
-                    .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
-                    .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-                    .build();
-        }
-
-        public void enable(Context context) {
-            ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-            connectivityManager.registerNetworkCallback(networkRequest, this);
-        }
-
-        @Override
-        public void onAvailable(Network network) {
-            Toast.makeText(App.getContext(), "ConnectionStateMonitor", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    public static class ConnectionChangeReceiver extends BroadcastReceiver {
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-            NetworkInfo activeNetInfo = connectivityManager.getActiveNetworkInfo();
-            if (activeNetInfo == null || !activeNetInfo.isConnected()/*|| !activeNetInfo.isAvailable()*/) {
-                DataStorage.networkAvailable.set(false);
-                DataStorage.activeNetInfoStr.set("");
-                refreshIp();
-                return;
-            }
-            if (activeNetInfo.getType() == ConnectivityManager.TYPE_WIFI) {
-                DataStorage.activeNetInfoStr.set("WIFI");
-                setNetworkAvailable();
-                refreshIp();
-                return;
-            }
-
-            int netSubtype = activeNetInfo.getSubtype();
-            switch (netSubtype) {
-                case TelephonyManager.NETWORK_TYPE_CDMA:
-                case TelephonyManager.NETWORK_TYPE_IDEN:
-                case TelephonyManager.NETWORK_TYPE_1xRTT:
-                case TelephonyManager.NETWORK_TYPE_EDGE:
-                case TelephonyManager.NETWORK_TYPE_GPRS:
-                case TelephonyManager.NETWORK_TYPE_GSM:
-                    DataStorage.activeNetInfoStr.set("2G");
-                    setNetworkAvailable();
-                    refreshIp();
-                    break;
-                case TelephonyManager.NETWORK_TYPE_UMTS:
-                case TelephonyManager.NETWORK_TYPE_EVDO_0:
-                case TelephonyManager.NETWORK_TYPE_EVDO_A:
-                case TelephonyManager.NETWORK_TYPE_HSDPA:
-                case TelephonyManager.NETWORK_TYPE_HSUPA:
-                case TelephonyManager.NETWORK_TYPE_HSPA:
-                case TelephonyManager.NETWORK_TYPE_EVDO_B:
-                case TelephonyManager.NETWORK_TYPE_EHRPD:
-                case TelephonyManager.NETWORK_TYPE_HSPAP:
-                case TelephonyManager.NETWORK_TYPE_TD_SCDMA:
-                    DataStorage.activeNetInfoStr.set("3G");
-                    setNetworkAvailable();
-                    refreshIp();
-                    break;
-                case TelephonyManager.NETWORK_TYPE_LTE:
-                case TelephonyManager.NETWORK_TYPE_IWLAN:
-                    DataStorage.activeNetInfoStr.set("4G");
-                    setNetworkAvailable();
-                    refreshIp();
-                    break;
-                case TelephonyManager.NETWORK_TYPE_NR:
-                    DataStorage.activeNetInfoStr.set("5G");
-                    setNetworkAvailable();
-                    refreshIp();
-                    break;
-                default:
-                    DataStorage.activeNetInfoStr.set("");
-                    DataStorage.networkAvailable.set(false);
-                    break;
-            }
-        }
-
-        private void setNetworkAvailable() {
-            DataStorage.networkAvailable.set(true);
-            RemoteServerHelper.getINSTANCE().completeFirstTask();
-        }
-
-        private void refreshIp() {
-            App.getBgHandler().post(() -> {
-                if (!DataStorage.networkAvailable.get()) {
-                    DataStorage.ip.set("");
-                    AppLogger.e("IP", "IP = " + DataStorage.ip);
-                    MainActivityPresenter.refreshTitle();
-                    return;
-                }
-               /* boolean ipreceived = false;
-                try {
-                    ipreceived = getIpFromIpInfo();
-                }catch (Exception e){}*/
-                /*if (!ipreceived) {*/
-                for (String url : IP_SERVICE_URLS) {
-                    if (getIpFromService(url)) {
-                        MainActivityPresenter.refreshTitle();
-                        return;
-                    }
-                }
-                MainActivityPresenter.refreshTitle();
-
-            });
-        }
-
-        private boolean getIpFromService(final String url) {
-            String responce = "";
-            OkHttpClient client = new OkHttpClient();
-            Request request = new Request.Builder().url(url).build();
-
-            try (Response response = client.newCall(request).execute()) {
-                responce = response.body().string();
-                JSONObject obj = new JSONObject(responce);
-                String ip = obj.getString("ip");
-                if (!ip.isEmpty()) {
-                    DataStorage.ip.set(ip);
-                    AppLogger.e("IP", "IP = " + DataStorage.ip);
-                }
-                return true;
-            } catch (IOException | JSONException e) {
-                e.printStackTrace();
-            }
-            return false;
-        }
-
-        private boolean getIpFromIpInfo() throws ClassNotFoundException {
-            try {
-                IPInfo ipInfo = IPInfo.builder().setToken(DataStorage.getIpInfoToken()).build();
-                IPResponse response = ipInfo.lookupIP("");
-                DataStorage.ip.set(response.getIp());
-                AppLogger.e("IP", "IP = " + DataStorage.ip);
-                return true;
-            } catch (RateLimitedException ex) {
-            }
-            return false;
-        }
     }
 }

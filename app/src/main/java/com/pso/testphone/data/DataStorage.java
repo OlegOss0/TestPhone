@@ -32,6 +32,7 @@ public class DataStorage {
     public static final int APP_INSTALL_ASSISTANT_REQUEST = 0x0000113;
     public static final int APP_UPDATE_ASSISTANT_REQUEST = 0x0000114;
     public static final int REGUEST_CODE_GPS_ENABLE = 0x0000114;
+    public static final int DB_LIMIT = 200;
     public static AtomicLong lastShowAssistanrMsgTime = new AtomicLong(0);
     public static AtomicLong lastShowAppUpdateMsgTime = new AtomicLong(0);
 
@@ -381,21 +382,26 @@ public class DataStorage {
         assistantCurVersion.set(version);
     }
 
-    public static boolean needUpdate(String curVersion, String available) {
-        boolean newVersionready;
-        Double curVersionDouble = Double.parseDouble(curVersion);
-        if (available.isEmpty()) {
-            MainActivityPresenter.addMsg(true, "Failed read new version app");
-            return false;
+
+    public static boolean needUpdate(final String curVersion, final String availableVer) {
+        try{
+            final String[] curVerStrArr = curVersion.split("\\.");
+            final String[] avVerStrArr = availableVer.split("\\.");
+            if(avVerStrArr.length > curVerStrArr.length) {
+                return true;
+            }else if(avVerStrArr.length == curVerStrArr.length){
+                for (int i = 0; i < curVersion.length() - 1; i++){
+                    final int avI = Integer.parseInt(avVerStrArr[i]);
+                    final int curI = Integer.parseInt(curVerStrArr[i]);
+                    if(avI > curI){
+                        return true;
+                    }
+                }
+            }
+        }catch (Exception e){
+            AppLogger.writeLogEx(e);
         }
-        Double availableVersionDouble = Double.parseDouble(available);
-        newVersionready = availableVersionDouble > curVersionDouble;
-        /*if (newVersionready) {
-            MainActivityPresenter.addMsg(true, "App need an update");
-        } else {
-            MainActivityPresenter.addMsg(true, "App version current");
-        }*/
-        return newVersionready;
+        return false;
     }
 
     public static File getAppUpdateFile(){
